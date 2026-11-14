@@ -8,7 +8,7 @@ public import EthLib.Serialization.Ssz.Codec.Json
 
 A hex digit reads the same in uppercase, so a hex string does too.
 
-A string reads as bytes exactly when it is their hex, with any digits after the marker in uppercase.
+A string reads as bytes exactly when it is their hex, with any digits after `0x` in uppercase.
 
 A document reads the same with any hex digits of its strings in uppercase, at every shape.
 
@@ -222,7 +222,7 @@ private theorem hexDigit_eq_ok {c : Char} {n : Nat} (read : hexDigit c = .ok n) 
         split <;> omega
       · cases read
 
-/-- Pairs of digits that read as bytes are the lowercase digits of those bytes, in either case. -/
+/-- Pairs of digits that read as bytes are the hex digits of those bytes, each in either case. -/
 private theorem keptOrUpper_of_hexBytesFrom :
     ∀ (digits : List Char) (out data : Bytes), hexBytesFrom digits out = .ok data →
       ∃ rest : List UInt8, data.toList = out.toList ++ rest ∧

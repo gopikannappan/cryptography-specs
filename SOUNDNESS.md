@@ -4414,7 +4414,8 @@ A mark of the spelling has effect only where its shape allows it, so no mark mak
 `ApiEnvelope.ofJson_eq_ok_iff` shows which documents read as an envelope: an object with `data`, in which each metadata key is absent or holds its form.
 A version is the string of its name, and each flag is a JSON boolean.
 A root is its hex behind `0x`, with digits in either case (`readRoot_eq_some_iff`).
-`readVersioned_eq_ok_iff` gives the same rule for a response read under a version, as the Builder API export reads it.
+`readVersioned_eq_ok_iff` gives the rule for a response read under a version, as the Builder API export reads it.
+There the `version` key holds that name, and `data` reads as the value.
 In both, every other key may hold any value.
 The root rests on `ofHex_eq_ok_iff` (`Serialization/Proofs/Ssz/Codec/JsonHexCase.lean`): a string reads as bytes exactly when it is their hex, with any digits after `0x` in uppercase.
 `valueOf_sameUpToCase` (`Serialization/Proofs/Ssz/Codec/JsonHexCase.lean`) shows that a document reads the same with any hex digits of its strings in uppercase, at every shape.
