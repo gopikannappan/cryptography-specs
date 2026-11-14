@@ -688,7 +688,7 @@ The finality check passes, and an update without a committee branch carries the 
 
 An update with a committee branch passes its branch check.
 
-If the store knows a next committee, a carried one from an attested slot in its period equals it.
+A carried committee from an attested slot in the period of the store equals a known next one.
 
 The signing root of the attested header can be computed.
 
