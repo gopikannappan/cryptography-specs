@@ -3814,6 +3814,7 @@ A body reads back from its JSON at its version, and so does each answer of each 
 The reader drops a field whose value is `null`.
 So a missing field and a `null` field read the same, and the round trip needs no hypothesis.
 A blob with its proof or with its cell proofs reads back (`blobAndProofV1OfJson_json`, `blobAndProofV2OfJson_json`, `Proofs/GetBlobs.lean`).
+A JSON value decodes as either exactly when its members that are not `null` are its two fields, with each blob and proof in lowercase hex (`blobAndProofV1OfJson_eq_ok_iff`, `blobAndProofV2OfJson_eq_ok_iff`).
 So do the selected cells of a blob and each answer of versions 1 to 4 (`blobCellsOfJson_json`, and `getBlobsV1OfJson_json` to `getBlobsV4OfJson_json`).
 A blob with its cell proofs holds exactly `CELLS_PER_EXT_BLOB` proofs, by its type.
 The selected cells decode only from two arrays of one length, with `null` at the same positions (`blobCellsOfJson_nulls`).
@@ -3825,6 +3826,8 @@ The Python tests read back every result example of `engine_getPayloadBodiesByHas
 `engine_exchangeTransitionConfigurationV1` of Paris exchanges the three settings of EIP-3675 that end proof of work (`Engine/TransitionConfiguration.lean`).
 A configuration reads back from its JSON (`transitionConfigurationOfJson_json`, `Proofs/TransitionConfiguration.lean`).
 The method succeeds exactly when the request holds one parameter that decodes as a configuration, and then answers the configuration of the execution node (`exchangeTransitionConfiguration_eq_ok_iff`).
+A JSON value decodes as a configuration exactly when its members that are not `null` are the three fields, each in canonical form (`transitionConfigurationOfJson_eq_ok_iff`).
+Its block hash is then in lowercase hex, and its two numbers have no leading zeros.
 So a successful answer never depends on the configuration in the request, as step 1 of the method says.
 What the method leaves to clients is not modelled: reporting a mismatch to the user, polling every 60 seconds, warning after 120 seconds without a request, and whether the method still answers after Cancun.
 The undecided terminal total difficulty of step 7, `2^256 - 2^10`, is a named constant.
@@ -3835,6 +3838,7 @@ The Python tests run the OpenRPC example, the undecided total difficulty, a bloc
 Each method succeeds exactly when its one parameter decodes, and then answers what the execution node holds, whatever the request says (`exchangeCapabilities_eq_ok_iff` and `getClientVersion_eq_ok_iff`, `Proofs/Capabilities.lean`).
 The parameters of `engine_exchangeCapabilities`, and a version object with a two-letter code, read back from their JSON (`exchangeCapabilitiesParams_json` and `clientVersionOfJson_json`).
 A version object decodes only with a code of two ASCII letters (`isClientCode_of_clientVersionOfJson`), in either case, since the source states no rule on the case.
+A JSON value decodes as a version object exactly when its members that are not `null` are the four fields: a code of two ASCII letters, a name and a version that are strings, and a commit of 4 bytes in lowercase hex (`clientVersionOfJson_eq_ok_iff`).
 Which methods a node supports is its own choice, so the method takes the list to answer.
 EthLib fixes one table, the last version of each method that it defines, and builds from it the list of every version of each; the C exports read the versions of their methods from it (`methodVersion_eq_some_iff`).
 Every name in it has the form `engine_`, a method, `V` and a positive version, and no name appears twice (`isVersionedMethod_specifiedMethods`).

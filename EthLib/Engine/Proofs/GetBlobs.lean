@@ -37,6 +37,10 @@ It reads no JSON value other than what the writer writes.
 
 Each structure of the answer reads back from its JSON, and so does the answer of each version.
 
+A JSON value reads as a blob with its proof, or with its cell proofs, exactly in canonical form.
+
+Each blob and proof is then in lowercase hex.
+
 The cells of version 4 decode only from two arrays of one length, with `null` at the same positions.
 -/
 
@@ -439,6 +443,76 @@ theorem blobAndProofV2OfJson_json (x : BlobAndProofV2) :
   simp only [hl, ↓reduceDIte]
   rcases x with ⟨b, ⟨⟨l⟩, h⟩⟩
   rfl
+
+/-- A JSON value reads as a blob and its proof exactly when it is an object of the form below.
+
+A member whose value is `null` counts as absent.
+
+Its other members are `blob` and `proof`, each once.
+
+Each is `0x` and two lowercase hex digits for each of its bytes. -/
+theorem blobAndProofV1OfJson_eq_ok_iff {j : Lean.Json} {x : BlobAndProofV1} :
+    blobAndProofV1OfJson j = .ok x ↔
+      ∃ fs, Serialization.JsonRpc.fields "blobAndProof" j = .ok fs ∧
+        Serialization.JsonRpc.hasExactly fs ["blob", "proof"] = true ∧
+        fs.lookup "blob" = some (.str (hexString x.blob.toList)) ∧
+        fs.lookup "proof" = some (.str (hexString x.proof.toList)) := by
+  unfold blobAndProofV1OfJson
+  simp only [bind_ok_iff]
+  refine exists_congr fun fs => and_congr_right fun _ => ?_
+  by_cases hex : Serialization.JsonRpc.hasExactly fs ["blob", "proof"] = true
+  · rw [and_iff_right hex]
+    simp only [hex, ↓reduceIte, bind_ok_iff, Serialization.JsonRpc.field_eq_ok_iff,
+      Serialization.JsonRpc.fixed_false_eq_ok_iff, pure, Except.pure, Except.ok.injEq]
+    obtain ⟨blob, proof⟩ := x
+    constructor
+    · rintro ⟨_, hb, blob, rfl, _, hp, proof, rfl, he⟩
+      cases he
+      exact ⟨hb, hp⟩
+    · rintro ⟨hb, hp⟩
+      exact ⟨_, hb, blob, rfl, _, hp, proof, rfl, rfl⟩
+  -- Any other set of members fails, never with a blob.
+  · simp [hex, bind, Except.bind, Serialization.JsonRpc.reject]
+
+/-- A JSON value reads as a blob and its cell proofs exactly when it is an object of the form below.
+
+A member whose value is `null` counts as absent.
+
+Its other members are `blob` and `proofs`, each once.
+
+The blob is `0x` and two lowercase hex digits for each of its bytes.
+
+The proofs are an array of one proof per cell, each written in the same way. -/
+theorem blobAndProofV2OfJson_eq_ok_iff {j : Lean.Json} {x : BlobAndProofV2} :
+    blobAndProofV2OfJson j = .ok x ↔
+      ∃ fs, Serialization.JsonRpc.fields "blobAndProof" j = .ok fs ∧
+        Serialization.JsonRpc.hasExactly fs ["blob", "proofs"] = true ∧
+        fs.lookup "blob" = some (.str (hexString x.blob.toList)) ∧
+        fs.lookup "proofs" =
+          some (.arr (x.proofs.toList.map fun p => .str (hexString p.toList)).toArray) := by
+  unfold blobAndProofV2OfJson
+  simp only [bind_ok_iff]
+  refine exists_congr fun fs => and_congr_right fun _ => ?_
+  by_cases hex : Serialization.JsonRpc.hasExactly fs ["blob", "proofs"] = true
+  · rw [and_iff_right hex]
+    simp only [hex, ↓reduceIte, bind_ok_iff, Serialization.JsonRpc.field_eq_ok_iff,
+      Serialization.JsonRpc.fixed_false_eq_ok_iff,
+      Serialization.JsonRpc.array_fixed_false_eq_ok_iff]
+    obtain ⟨blob, proofs⟩ := x
+    constructor
+    · rintro ⟨_, hb, blob, rfl, _, hp, l, rfl, h⟩
+      split at h
+      · cases h
+        exact ⟨hb, hp⟩
+      -- A count of proofs other than one per cell fails.
+      · cases h
+    · rintro ⟨hb, hp⟩
+      refine ⟨_, hb, blob, rfl, _, hp, proofs.toList, rfl, ?_⟩
+      simp only [Vector.length_toList, ↓reduceDIte, pure, Except.pure]
+      rcases proofs with ⟨⟨l⟩, h⟩
+      rfl
+  -- Any other set of members fails, never with a blob.
+  · simp [hex, bind, Except.bind, Serialization.JsonRpc.reject]
 
 /-- A list of optional byte strings of a size reads back from its encoding as data. -/
 private theorem array_nullable_fixed_listJson {n : Nat} (what w : String)
