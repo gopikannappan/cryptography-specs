@@ -33,6 +33,10 @@ That threshold is half the larger of the two counts of signers, rounded down.
 An update moves the finalized header only with two thirds of the committee.
 
 The two counts of signers move back a period when such a header opens the next period.
+
+Applying an update, forcing an update and processing an update are each stated whole.
+
+Each theorem says when the step succeeds, and which store it returns.
 -/
 
 @[expose] public section
@@ -654,6 +658,271 @@ theorem processLightClientUpdate_maxActiveParticipants {config : Config}
   have fields := (processLightClientUpdate_fields computed).2.2
   simp only [and_assoc] at fields
   exact fields
+
+/--
+Applying an update succeeds exactly when the fork has a light client and the periods fit.
+
+A store that does not know the next committee needs the finalized header in its own period.
+
+It then takes the next committee of the update.
+
+A store that knows it moves a period on when the finalized header opens the next period.
+
+Its next committee becomes its current one, and it takes the next committee of the update.
+
+Its current count of signers becomes the previous count, and the current count starts at zero.
+
+A newer finalized header replaces the finalized header, and the optimistic header if newer still.
+
+The store keeps its other fields.
+-/
+theorem applyLightClientUpdate_eq_ok_iff {store after : LightClientStore preset fork}
+    {update : LightClientUpdate preset fork} :
+    applyLightClientUpdate store update = .ok after ↔
+      .altair ≤ fork ∧
+      (store.isNextSyncCommitteeKnown = false →
+        computeSyncCommitteePeriodAtSlot preset update.finalizedHeader.beacon.slot =
+          computeSyncCommitteePeriodAtSlot preset store.finalizedHeader.beacon.slot) ∧
+      let rotated := store.isNextSyncCommitteeKnown = true ∧
+        computeSyncCommitteePeriodAtSlot preset update.finalizedHeader.beacon.slot =
+          computeSyncCommitteePeriodAtSlot preset store.finalizedHeader.beacon.slot + 1
+      let newer := store.finalizedHeader.beacon.slot < update.finalizedHeader.beacon.slot
+      after = { store with
+        currentSyncCommittee :=
+          if rotated then store.nextSyncCommittee else store.currentSyncCommittee
+        nextSyncCommittee :=
+          if store.isNextSyncCommitteeKnown = false ∨ rotated then update.nextSyncCommittee
+          else store.nextSyncCommittee
+        previousMaxActiveParticipants :=
+          if rotated then store.currentMaxActiveParticipants
+          else store.previousMaxActiveParticipants
+        currentMaxActiveParticipants := if rotated then 0 else store.currentMaxActiveParticipants
+        finalizedHeader := if newer then update.finalizedHeader else store.finalizedHeader
+        optimisticHeader :=
+          if newer ∧ store.optimisticHeader.beacon.slot < update.finalizedHeader.beacon.slot then
+            update.finalizedHeader
+          else store.optimisticHeader } := by
+  unfold applyLightClientUpdate
+  simp only [bind, Except.bind, pure, Except.pure, LightClientError.require,
+    LightClientError.requireFork]
+  by_cases altair : Fork.altair ≤ fork
+  · -- Split on each condition of the definition, then read the store that each branch builds.
+    by_cases same : computeSyncCommitteePeriodAtSlot preset update.finalizedHeader.beacon.slot =
+      computeSyncCommitteePeriodAtSlot preset store.finalizedHeader.beacon.slot <;>
+    by_cases next : computeSyncCommitteePeriodAtSlot preset update.finalizedHeader.beacon.slot =
+      computeSyncCommitteePeriodAtSlot preset store.finalizedHeader.beacon.slot + 1 <;>
+    by_cases newer : store.finalizedHeader.beacon.slot < update.finalizedHeader.beacon.slot <;>
+    by_cases later : store.optimisticHeader.beacon.slot < update.finalizedHeader.beacon.slot <;>
+    cases known : store.isNextSyncCommitteeKnown <;>
+    simp [altair, same, next, newer, later] <;>
+    exact eq_comm
+  · simp [altair]
+
+/--
+A forced update succeeds exactly when the fork has a light client and its timeout fits in 64 bits.
+
+The timeout is the finalized slot of the store plus the slots of one sync committee period.
+
+After the timeout, the store applies the best update that it kept, and then drops it.
+
+Its attested header stands for its finalized header, unless that is newer than the store's.
+
+A store with no best update, or not yet past the timeout, stays as it is.
+-/
+theorem processLightClientStoreForceUpdate_eq_ok_iff
+    {store after : LightClientStore preset fork} {currentSlot : Slot} :
+    processLightClientStoreForceUpdate store currentSlot = .ok after ↔
+      let timeout := store.finalizedHeader.beacon.slot.toNat + preset.UPDATE_TIMEOUT.toNat
+      .altair ≤ fork ∧ timeout < 2 ^ 64 ∧
+        (∀ best, store.bestValidUpdate = some best → timeout < currentSlot.toNat →
+          ∃ applied, applyLightClientUpdate store { best with
+              finalizedHeader :=
+                if store.finalizedHeader.beacon.slot < best.finalizedHeader.beacon.slot then
+                  best.finalizedHeader
+                else best.attestedHeader } = .ok applied ∧
+            after = { applied with bestValidUpdate := none }) ∧
+        (store.bestValidUpdate = none ∨ currentSlot.toNat ≤ timeout → after = store) := by
+  unfold processLightClientStoreForceUpdate
+  simp only [bind, Except.bind, pure, Except.pure, LightClientError.require,
+    LightClientError.requireFork]
+  by_cases altair : Fork.altair ≤ fork <;>
+  by_cases fits : store.finalizedHeader.beacon.slot.toNat + preset.UPDATE_TIMEOUT.toNat < 2 ^ 64 <;>
+  simp only [altair, fits, ↓reduceIte, true_and, false_and, reduceCtorEq]
+  cases kept : store.bestValidUpdate with
+  | none => simp [eq_comm]
+  | some best =>
+    by_cases due : store.finalizedHeader.beacon.slot.toNat + preset.UPDATE_TIMEOUT.toNat <
+      currentSlot.toNat
+    · -- The update applied is the best one, with its attested header unless it finalizes newer.
+      have forced : (if best.finalizedHeader.beacon.slot ≤ store.finalizedHeader.beacon.slot then
+          { best with finalizedHeader := best.attestedHeader } else best) =
+          { best with finalizedHeader :=
+            if store.finalizedHeader.beacon.slot < best.finalizedHeader.beacon.slot then
+              best.finalizedHeader
+            else best.attestedHeader } := by
+        by_cases newer : store.finalizedHeader.beacon.slot < best.finalizedHeader.beacon.slot <;>
+          simp [newer, UInt64.not_le.mpr, UInt64.not_lt.mp]
+      simp only [gt_iff_lt, due, ↓reduceIte, forced, Option.some.injEq, forall_eq', true_implies,
+        reduceCtorEq, Nat.not_le.mpr due, or_self, false_implies, and_true]
+      cases applyLightClientUpdate store _ <;> simp [eq_comm]
+    · simp [due, Nat.le_of_not_lt due, eq_comm]
+
+/-- Processing an update checks it, then builds a store, and may apply the update to that store.
+
+That store keeps the update as best, counts its signers and moves the optimistic header.
+
+The update is applied with two thirds of the committee, if it finalizes or brings a committee. -/
+private theorem processLightClientUpdate_eq_bind {config : Config} {checks : SignatureChecks}
+    {store : LightClientStore preset fork} {update : LightClientUpdate preset fork}
+    {currentSlot : Slot} {genesisValidatorsRoot : Root} :
+    processLightClientUpdate config checks store update currentSlot genesisValidatorsRoot =
+      validateLightClientUpdate config checks store update currentSlot genesisValidatorsRoot >>=
+        fun _ =>
+          let active := update.syncAggregate.participants
+          let kept : LightClientStore preset fork := { store with
+            bestValidUpdate :=
+              if store.bestValidUpdate.all (isBetterUpdate update ·) then some update
+              else store.bestValidUpdate
+            currentMaxActiveParticipants := max store.currentMaxActiveParticipants active.toUInt64
+            optimisticHeader :=
+              if max store.previousMaxActiveParticipants.toNat
+                    (max store.currentMaxActiveParticipants.toNat active) / 2 < active ∧
+                  store.optimisticHeader.beacon.slot < update.attestedHeader.beacon.slot then
+                update.attestedHeader
+              else store.optimisticHeader }
+          if preset.SYNC_COMMITTEE_SIZE.toNat * 2 ≤ active * 3 ∧
+              (store.finalizedHeader.beacon.slot < update.finalizedHeader.beacon.slot ∨
+                store.isNextSyncCommitteeKnown = false ∧ update.isSyncCommitteeUpdate = true ∧
+                  update.isFinalityUpdate = true ∧
+                  computeSyncCommitteePeriodAtSlot preset update.finalizedHeader.beacon.slot =
+                    computeSyncCommitteePeriodAtSlot preset update.attestedHeader.beacon.slot) then
+            applyLightClientUpdate kept update >>= fun applied =>
+              pure { applied with bestValidUpdate := none }
+          else pure kept := by
+  have small : update.syncAggregate.participants < 2 ^ 64 :=
+    Nat.lt_of_le_of_lt (SyncAggregate.participants_le _) (UInt64.toNat_lt _)
+  unfold processLightClientUpdate
+  congr 1
+  funext
+  -- The threshold is read in 64 bits, and the count of signers fits in them.
+  have threshold (kept : LightClientStore preset fork) :
+      kept.safetyThreshold.toNat = max kept.previousMaxActiveParticipants.toNat
+        kept.currentMaxActiveParticipants.toNat / 2 := by
+    simp [LightClientStore.safetyThreshold, Base.Uint64.toNat_max, UInt64.toNat_div]
+  have count : update.syncAggregate.participants.toUInt64.toNat =
+      update.syncAggregate.participants := by
+    simp [Nat.toUInt64, Nat.mod_eq_of_lt small]
+  -- Split on the kept update and on the move of the optimistic header, then read both sides.
+  cases kept : store.bestValidUpdate with
+  | none =>
+    simp only [Option.all_none, ↓reduceIte, threshold, Base.Uint64.toNat_max, count]
+    by_cases opt : max store.previousMaxActiveParticipants.toNat
+          (max store.currentMaxActiveParticipants.toNat update.syncAggregate.participants) / 2 <
+        update.syncAggregate.participants ∧
+      store.optimisticHeader.beacon.slot < update.attestedHeader.beacon.slot <;>
+    simp [opt, LightClientStore.isNextSyncCommitteeKnown, and_assoc]
+  | some best =>
+    by_cases better : isBetterUpdate update best = true <;>
+    simp only [better, Option.all_some, ↓reduceIte, Bool.false_eq_true, threshold,
+      Base.Uint64.toNat_max, count] <;>
+    by_cases opt : max store.previousMaxActiveParticipants.toNat
+          (max store.currentMaxActiveParticipants.toNat update.syncAggregate.participants) / 2 <
+        update.syncAggregate.participants ∧
+      store.optimisticHeader.beacon.slot < update.attestedHeader.beacon.slot <;>
+    simp [opt, kept, LightClientStore.isNextSyncCommitteeKnown, and_assoc]
+
+/--
+Processing an update succeeds exactly when it passes its checks and an applied update fits.
+
+It is applied with two thirds of the committee, if it brings a newer finalized header.
+
+It is also applied for the first next committee of a store, from a finality update.
+
+Its finalized header must then be in the period of its attested header.
+
+An applied update to a store that does not know the next committee needs the period of the store.
+
+The update becomes the best update unless the store keeps a better one, or the update is applied.
+
+The current count of signers takes the signers of the update, if they are more.
+
+The attested header becomes the optimistic header if newer, with more signers than the threshold.
+
+That threshold is half the larger of the previous count and the current count, rounded down.
+
+An applied update moves the headers and the committees as applying an update does.
+-/
+theorem processLightClientUpdate_eq_ok_iff {config : Config} {checks : SignatureChecks}
+    {store after : LightClientStore preset fork} {update : LightClientUpdate preset fork}
+    {currentSlot : Slot} {genesisValidatorsRoot : Root} :
+    processLightClientUpdate config checks store update currentSlot genesisValidatorsRoot =
+        .ok after ↔
+      let period := computeSyncCommitteePeriodAtSlot preset
+      let active := update.syncAggregate.participants
+      let finalized := update.finalizedHeader
+      let optimistic :=
+        if max store.previousMaxActiveParticipants.toNat
+              (max store.currentMaxActiveParticipants.toNat active) / 2 < active ∧
+            store.optimisticHeader.beacon.slot < update.attestedHeader.beacon.slot then
+          update.attestedHeader
+        else store.optimisticHeader
+      let newer := store.finalizedHeader.beacon.slot < finalized.beacon.slot
+      let applied := preset.SYNC_COMMITTEE_SIZE.toNat * 2 ≤ active * 3 ∧
+        (newer ∨ store.isNextSyncCommitteeKnown = false ∧ update.isSyncCommitteeUpdate = true ∧
+          update.isFinalityUpdate = true ∧
+          period finalized.beacon.slot = period update.attestedHeader.beacon.slot)
+      let rotated := applied ∧ store.isNextSyncCommitteeKnown = true ∧
+        period finalized.beacon.slot = period store.finalizedHeader.beacon.slot + 1
+      let current := max store.currentMaxActiveParticipants active.toUInt64
+      validateLightClientUpdate config checks store update currentSlot genesisValidatorsRoot =
+          .ok () ∧
+        (applied → store.isNextSyncCommitteeKnown = false →
+          period finalized.beacon.slot = period store.finalizedHeader.beacon.slot) ∧
+        after = { store with
+          finalizedHeader := if applied ∧ newer then finalized else store.finalizedHeader
+          currentSyncCommittee :=
+            if rotated then store.nextSyncCommittee else store.currentSyncCommittee
+          nextSyncCommittee :=
+            if applied ∧ store.isNextSyncCommitteeKnown = false ∨ rotated then
+              update.nextSyncCommittee
+            else store.nextSyncCommittee
+          bestValidUpdate :=
+            if applied then none
+            else if store.bestValidUpdate.all (isBetterUpdate update ·) then some update
+            else store.bestValidUpdate
+          optimisticHeader :=
+            if applied ∧ newer ∧ optimistic.beacon.slot < finalized.beacon.slot then finalized
+            else optimistic
+          previousMaxActiveParticipants :=
+            if rotated then current else store.previousMaxActiveParticipants
+          currentMaxActiveParticipants := if rotated then 0 else current } := by
+  rw [processLightClientUpdate_eq_bind]
+  cases valid : validateLightClientUpdate config checks store update currentSlot
+    genesisValidatorsRoot with
+  | error e => simp [bind, Except.bind]
+  | ok u =>
+    -- An update passes its checks only at a fork with a light client.
+    have altair : Fork.altair ≤ fork := by
+      unfold validateLightClientUpdate at valid
+      obtain ⟨_, forked, -⟩ := Base.bind_ok_iff.mp valid
+      by_cases h : Fork.altair ≤ fork
+      · exact h
+      · simp [LightClientError.requireFork, h] at forked
+    simp only [Base.bind_ok_iff, true_and]
+    split
+    · -- An update that is applied passes the checks of applying it.
+      rename_i applied
+      simp only [applied, true_implies, true_and, and_true, Base.bind_ok_iff,
+        applyLightClientUpdate_eq_ok_iff, altair, pure, Except.pure, Except.ok.injEq]
+      constructor
+      · rintro ⟨-, kept, ⟨fits, rfl⟩, rfl⟩
+        exact ⟨fits, by simp [LightClientStore.isNextSyncCommitteeKnown]⟩
+      · rintro ⟨fits, rfl⟩
+        exact ⟨(), _, ⟨fits, rfl⟩, by simp [LightClientStore.isNextSyncCommitteeKnown]⟩
+    · rename_i kept
+      simp only [kept, false_and, false_or, ↓reduceIte, false_implies, true_and, pure, Except.pure,
+        Except.ok.injEq, exists_const]
+      exact eq_comm
 
 end Headers
 
