@@ -3454,7 +3454,7 @@ A store that does not know the next committee needs the finalized header of the 
 Such a store then takes the next committee of the update.
 A store that knows the next committee moves both committees and both counts back a period when that header opens the next period.
 `processLightClientStoreForceUpdate_eq_ok_iff` states when a forced update succeeds, and the store that it returns.
-It fails when the timeout overflows 64 bits, or when applying the best update fails.
+It fails at a fork without a light client, when the timeout overflows 64 bits, or when applying the best update past the timeout fails.
 Past the timeout it applies the best update, whose attested header stands for a finalized header that is not newer than that of the store.
 `processLightClientUpdate_eq_ok_iff` states when processing an update succeeds, and the store that it returns, with its committees and its best update.
 Without a newer finalized header, the first next committee is applied only from a finality update whose finalized header is in the period of its attested header.

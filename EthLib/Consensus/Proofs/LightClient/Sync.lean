@@ -265,7 +265,7 @@ Processing an update succeeds exactly when it passes its checks and an applied u
 
 It is applied with two thirds of the committee, if it brings a newer finalized header.
 
-It is also applied for the first next committee of a store, from a finality update.
+With two thirds, it is also applied if it brings the first next committee, from a finality update.
 
 Its finalized header must then be in the period of its attested header.
 
