@@ -12,11 +12,11 @@ Each message reads back from its frame data, compressed or not.
 
 A reader of Hello ignores the list items after the five fields it knows, as EIP-8 asks.
 
-The readers accept no other items.
+A message is read only from its own ID and its own items.
 
-A message reads exactly from its own ID and its items, and only Hello takes items after them.
+Only Hello takes further items after its fields.
 
-A capability reads exactly from its own item.
+Only the item of a capability reads as that capability.
 
 With Snappy, a reader rejects a message other than Hello whose preamble declares more than 16 MiB.
 
@@ -94,7 +94,7 @@ theorem Message.ofItem_toItem (m : Message) : Message.ofItem m.id m.toItem = .ok
 
 /-! ## The items that the readers accept -/
 
-/-- A capability is read exactly from its own item. -/
+/-- Only the item of a capability reads as that capability. -/
 instance : LawfulCodec Capability where
   ofItem_toItem := Capability.ofItem_toItem
   toItem_of_ofItem {item c} h := by
@@ -116,31 +116,16 @@ theorem Hello.ofItem_eq_ok_iff {item : Item} {h : Hello} :
       ∃ fields extra, Codec.toItem h = .list fields ∧ item = .list (fields ++ extra) := by
   constructor
   · intro hh
-    cases item with
-    | bytes _ =>
-      simp [Codec.ofItem, Rlpx.leadingFields, Item.toItems, bind, Except.bind] at hh
-    | list items =>
-      match items, hh with
-      | v :: c :: caps :: p :: n :: extra, hh =>
-        rw [show v :: c :: caps :: p :: n :: extra = [v, c, caps, p, n] ++ extra from rfl,
-          Hello.ofItem_append extra (by simp)] at hh
-        change (do
-          match ← Rlpx.leadingFields 5 (.list [v, c, caps, p, n]) with
-          | [v, c, caps, p, n] =>
-            return (⟨← Codec.ofItem v, ← Codec.ofItem c, ← Codec.ofItem caps, ← Codec.ofItem p,
-              ← Codec.ofItem n⟩ : Hello)
-          | items => throw (RlpError.wrongFieldCount 5 items.length)) = _ at hh
-        simp only [Rlpx.leadingFields, Item.toItems, EthLib.Base.bind_ok_iff, Except.ok.injEq,
-          List.length_cons, List.length_nil, List.take, Nat.zero_add, Nat.reduceAdd, Nat.le_refl,
-          ↓reduceIte, exists_eq_left', pure, Except.pure] at hh
-        obtain ⟨v', hv, c', hc, caps', hcaps, p', hp, n', hn, rfl⟩ := hh
-        refine ⟨_, extra, rfl, ?_⟩
-        rw [← Codec.ofItem_eq_ok_iff.mp hv, ← Codec.ofItem_eq_ok_iff.mp hc,
-          ← Codec.ofItem_eq_ok_iff.mp hcaps, ← Codec.ofItem_eq_ok_iff.mp hp,
-          ← Codec.ofItem_eq_ok_iff.mp hn]
-        rfl
-      | [], hh | [_], hh | [_, _], hh | [_, _, _], hh | [_, _, _, _], hh =>
-        simp [Codec.ofItem, Rlpx.leadingFields, Item.toItems, bind, Except.bind] at hh
+    obtain ⟨fields, extra, rfl, hlen, hh⟩ := Rlpx.leadingFields_bind_eq_ok.mp hh
+    match fields, hlen, hh with
+    | [v, c, caps, p, n], _, hh =>
+      simp only [EthLib.Base.bind_ok_iff, pure, Except.pure, Except.ok.injEq] at hh
+      obtain ⟨v', hv, c', hc, caps', hcaps, p', hp, n', hn, rfl⟩ := hh
+      refine ⟨_, extra, rfl, ?_⟩
+      rw [← Codec.ofItem_eq_ok_iff.mp hv, ← Codec.ofItem_eq_ok_iff.mp hc,
+        ← Codec.ofItem_eq_ok_iff.mp hcaps, ← Codec.ofItem_eq_ok_iff.mp hp,
+        ← Codec.ofItem_eq_ok_iff.mp hn]
+      rfl
   · rintro ⟨fields, extra, hf, rfl⟩
     have hlen : 5 ≤ fields.length := by
       simp [Codec.toItem] at hf
@@ -148,7 +133,7 @@ theorem Hello.ofItem_eq_ok_iff {item : Item} {h : Hello} :
     rw [Hello.ofItem_append extra hlen, ← hf, Hello.ofItem_toItem]
 
 /--
-The reader takes a message from an ID and a list exactly when they are its ID and its items.
+The reader takes a message exactly when the ID is its ID and the list starts with its items.
 
 Only Hello takes any items after its fields, as EIP-8 asks.
 -/
