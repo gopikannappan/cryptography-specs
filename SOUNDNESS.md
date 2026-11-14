@@ -2168,6 +2168,7 @@ An ID from `0x10` on goes to the shared capability that holds it, and `route` gi
 `Message.ofItem_eq_ok_iff` (`Networking/Proofs/Devp2p/P2p.lean`) states that a message is read only from its own ID and its own items, and that only Hello takes further items after its fields.
 `Hello.ofItem_eq_ok_iff` states that Hello is read from a list exactly when the list starts with the items of its five fields, whatever items follow, as EIP-8 asks.
 `messageCount_le_iff_unknownId` (`Execution/Proofs/Network/Message.lean`) states that the IDs an eth version holds are those below the first ID from which its decoder rejects every ID as unknown.
+`Message.ofItem_eq_ok_iff` (`Execution/Proofs/Network/Message.lean`) states that the eth decoder reads a message exactly from its own ID and item, on a version that uses its form.
 No theorem says anything about a sequence of frames beyond one step, or about timeouts.
 
 The source leaves three points open, and the session reads them as follows.
