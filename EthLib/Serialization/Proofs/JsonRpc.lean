@@ -740,13 +740,15 @@ theorem quantity_eq_ok_iff {what : String} {bits : Nat} {j : Lean.Json} {v : Nat
   · rintro ⟨hv, rfl⟩
     exact quantity_toDigits what hv
 
-/-! ## Only the canonical text decodes to bytes -/
+/-- A 64-bit number decodes exactly from its quantity, `0x` and its hex digits.
 
-/-- A 64-bit number decodes exactly from its quantity, `0x` and its hex digits. -/
+Those digits are lowercase, without leading zeros. -/
 theorem uint64_eq_ok_iff_quantityJson {what : String} {j : Lean.Json} {x : UInt64} :
     uint64 what j = .ok x ↔ j = quantityJson x.toNat := by
   rw [uint64_eq_ok_iff, quantity_eq_ok_iff]
   exact and_iff_right x.toNat_lt
+
+/-! ## Only the canonical text decodes to bytes -/
 
 /-- A code that the decoder reads as a lowercase hex digit is the code of the digit of its value.
 
