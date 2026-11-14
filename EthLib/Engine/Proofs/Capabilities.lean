@@ -22,9 +22,9 @@ Each method succeeds exactly when its request decodes, and then answers what the
 
 A version object reads back from its JSON when its code is two letters, and only then.
 
-A JSON value reads as a version object exactly when it holds the four members.
+A JSON value reads as a version object exactly when it holds the four members, each in its form.
 
-Its code is then two letters, and its commit is in lowercase hex.
+The code is two letters, the name and the version are strings, and the commit is lowercase hex.
 -/
 
 public section

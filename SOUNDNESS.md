@@ -3838,8 +3838,7 @@ The Python tests run the OpenRPC example, the undecided total difficulty, a bloc
 Each method succeeds exactly when its one parameter decodes, and then answers what the execution node holds, whatever the request says (`exchangeCapabilities_eq_ok_iff` and `getClientVersion_eq_ok_iff`, `Proofs/Capabilities.lean`).
 The parameters of `engine_exchangeCapabilities`, and a version object with a two-letter code, read back from their JSON (`exchangeCapabilitiesParams_json` and `clientVersionOfJson_json`).
 A version object decodes only with a code of two ASCII letters (`isClientCode_of_clientVersionOfJson`), in either case, since the source states no rule on the case.
-A JSON value decodes as a version object exactly when its members that are not `null` are the four fields (`clientVersionOfJson_eq_ok_iff`).
-Its code is then a string of two ASCII letters, its name and version are strings, and its commit is 4 bytes in lowercase hex.
+A JSON value decodes as a version object exactly when its members that are not `null` are the four fields: a code of two ASCII letters, a name and a version that are strings, and a commit of 4 bytes in lowercase hex (`clientVersionOfJson_eq_ok_iff`).
 Which methods a node supports is its own choice, so the method takes the list to answer.
 EthLib fixes one table, the last version of each method that it defines, and builds from it the list of every version of each; the C exports read the versions of their methods from it (`methodVersion_eq_some_iff`).
 Every name in it has the form `engine_`, a method, `V` and a positive version, and no name appears twice (`isVersionedMethod_specifiedMethods`).
