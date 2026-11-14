@@ -18,7 +18,7 @@ The encoded slim form of an account converts to its full encoding.
 
 Each message reads back from its ID and its RLP item on the versions that use its ID.
 
-The decoder reads no other ID and item, so it takes no field more or less than the writer writes.
+The decoder reads no other ID or item, so it takes no field more or less than the writer writes.
 
 snap/2 rejects the trie node messages of snap/1, and snap/1 the access list messages of snap/2.
 
@@ -165,7 +165,7 @@ theorem ofItem_toItem {version : SnapVersion} {m : SnapMessage} (hm : usesId ver
 
 /-- A message reads exactly from its own ID and its item, on a version that uses its ID.
 
-So the decoder takes no item with fields missing or added. -/
+So the decoder takes no item other than the one the writer writes, and no ID of another version. -/
 theorem ofItem_eq_ok_iff {version : SnapVersion} {id : Nat} {item : Item} {m : SnapMessage} :
     ofItem version id item = .ok m ↔ id = m.id ∧ usesId version m.id ∧ item = m.toItem := by
   constructor
@@ -177,21 +177,16 @@ theorem ofItem_eq_ok_iff {version : SnapVersion} {id : Nat} {item : Item} {m : S
       obtain ⟨items, hitems, h⟩ := h
       obtain rfl := Item.toItems_eq_ok.mp hitems
       split at h
-      case h_10 =>
-        rw [Item.field_bind_eq_ok] at h
-        obtain ⟨_, rfl, h⟩ := h
-        rw [bind_ok_iff] at h
-        obtain ⟨_, hls, h⟩ := h
-        obtain rfl := Item.toItems_eq_ok.mp (mapError_ok_iff.mp hls)
-        cases h
-        exact ⟨rfl, hu, rfl⟩
-      case h_11 => cases h
       all_goals
         repeat
           rw [Item.field_bind_eq_ok] at h
           obtain ⟨_, rfl, h⟩ := h
+        try
+          rw [bind_ok_iff] at h
+          obtain ⟨_, hls, h⟩ := h
+          obtain rfl := Item.toItems_eq_ok.mp (mapError_ok_iff.mp hls)
         cases h
-        exact ⟨rfl, hu, rfl⟩
+        all_goals exact ⟨rfl, hu, rfl⟩
     · simp [hu, throw, throwThe, MonadExceptOf.throw, bind, Except.bind] at h
   · rintro ⟨rfl, hm, rfl⟩
     exact ofItem_toItem hm
