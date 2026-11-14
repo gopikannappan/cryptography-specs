@@ -244,8 +244,10 @@ public import EthLib.Consensus.Proofs.Transition.Totality.AltairWitness
 public import EthLib.Consensus.Proofs.Transition.Totality.AtCap
 public import EthLib.Consensus.Proofs.Transition.Totality.Bound
 public import EthLib.Consensus.Proofs.Transition.Totality.BuilderPayments
+public import EthLib.Consensus.Proofs.Transition.Totality.ChainHolds
 public import EthLib.Consensus.Proofs.Transition.Totality.Consolidations
 public import EthLib.Consensus.Proofs.Transition.Totality.EffectiveBalances
+public import EthLib.Consensus.Proofs.Transition.Totality.EffectiveBlock
 public import EthLib.Consensus.Proofs.Transition.Totality.EpochAltair
 public import EthLib.Consensus.Proofs.Transition.Totality.EpochElectra
 public import EthLib.Consensus.Proofs.Transition.Totality.EpochExits
@@ -256,6 +258,7 @@ public import EthLib.Consensus.Proofs.Transition.Totality.Horizon
 public import EthLib.Consensus.Proofs.Transition.Totality.Inactivity
 public import EthLib.Consensus.Proofs.Transition.Totality.Justification
 public import EthLib.Consensus.Proofs.Transition.Totality.Pending
+public import EthLib.Consensus.Proofs.Transition.Totality.PendingBlock
 public import EthLib.Consensus.Proofs.Transition.Totality.PendingDeposits
 public import EthLib.Consensus.Proofs.Transition.Totality.ProposerLookahead
 public import EthLib.Consensus.Proofs.Transition.Totality.PtcWindow

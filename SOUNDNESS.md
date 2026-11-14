@@ -816,10 +816,22 @@ The trailing zero bits of a named bit list (X.690 §11.2.2) are not checked, sin
 The reader takes a scalar value to be at most 10FFFF and outside D800 to DFFF.
 X.690 also forbids a leading signature and some control functions (§§8.23.7 to 8.23.9), which the reader does not check.
 A BMPString may also hold FFFE or FFFF, which X.680 §41.15 leaves out of its character set.
-`validate_go_boolean_ok_iff`, `validate_go_bitString`, `validate_go_bmpString_ok_iff` and `validate_go_universalString_ok_iff` state what validation accepts for one value of these tags, for any positive fuel; no theorem shows that each nested value receives it.
+`validate_go_boolean_ok_iff`, `validate_go_bitString`, `validate_go_bmpString_ok_iff` and `validate_go_universalString_ok_iff` state what validation accepts for one value of these tags, for any positive fuel.
 `validate_boolean_ok_iff`, `validate_bitString`, `validate_bmpString_ok_iff` and `validate_universalString_ok_iff` give the same at the top, as the certificate reader validates each Name attribute value and each algorithm parameter.
-No theorem states the validation of INTEGER, OCTET STRING, OBJECT IDENTIFIER, NULL, UTF8String, PrintableString or IA5String, nor the rejection of every other tag.
-No theorem states the validation of a SEQUENCE or a SET OF, its order or its children.
+`oid_ok_iff` states that an OBJECT IDENTIFIER reads as its content exactly when that content is one or more subidentifiers (X.690 §8.19.2).
+Each subidentifier has bit 8 set on every octet but the last, and a first octet other than 80, so it takes the fewest octets.
+The reader does not check the two arcs that the first subidentifier combines, since every value of it names a valid pair.
+`validate_oid_ok_iff`, `validate_null_ok_iff`, `validate_utf8String_ok_iff` and `validate_printableString_ok_iff` state what validation accepts for these tags.
+A NULL is empty, and a UTF8String is the UTF-8 encoding of some characters.
+A PrintableString holds the letters, digits, space and `'()+,-./:=?` of X.680 §41.4.
+`validate_eq_error_tag` states that a value of every tag outside the subset fails with a tag error.
+`validate_sequence_ok_iff` and `validate_set_ok_iff` state that a SEQUENCE or a SET OF passes exactly when its content reads as values that each pass.
+A SET OF also needs the encodings of those values in ascending order, compared octet by octet (X.690 §11.6).
+Both hold for a value whose encoding is longer than its content.
+Every value that the reader returns is one (`size_lt_of_read_ok`, `children_go_sizes`).
+The comparison puts a proper prefix first, where X.690 pads the shorter encoding with zero octets.
+No theorem states that one sibling encoding is never a proper prefix of another.
+No theorem states the validation of INTEGER, OCTET STRING or IA5String.
 Nothing in Lean shows that authentication can succeed; the Python tests check vectors 1 to 4 of libp2p TLS.
 
 ### QUIC wire encodings
@@ -3728,6 +3740,10 @@ A 64-bit number decodes to `x` exactly when the number read with the bound `2^64
 The encoder of numbers writes the only text that decodes to the number, at any bound `2^bits` above it (`quantity_eq_ok_iff`).
 So two numbers never share an encoding (`quantityJson_inj`).
 The error object of JSON-RPC 2.0 reads back from what its writer writes, whatever its data, `null` included (`rpcErrorOfJson_json`).
+A JSON value reads as an integer exactly when it is a number `m / 10 ^ e` whose mantissa `m` is a multiple of `10 ^ e` (`integer_eq_ok_iff`).
+A value reads as an error object exactly when its only members are `code`, `message` and, optionally, `data` (`rpcErrorOfJson_eq_ok_iff`).
+Its code is an integer, and its message a string.
+Its data is the value under `data`, `null` included, and none when the member is missing.
 A withdrawal, and a list of withdrawals, decode back from their encodings (`withdrawal_withdrawalJson`, `array_withdrawal_listJson`, `Execution/Proofs/Rpc/Json.lean`).
 An input that a shared reader rejects is an invalid parameter of the Engine API, for the same reason (`liftM_error`, `liftM_eq_ok_iff`, `Engine/Proofs/Json.lean`).
 A payload of version 4 decodes exactly when it holds the fields of version 4 and each part decodes (`payloadV4_eq_ok_iff`).
@@ -3918,6 +3934,11 @@ Its only members are `jsonrpc`, `id`, `method` and `params`.
 Its `jsonrpc` is the string `2.0`, its `id` a string, a number or `null`, and its `method` a string.
 Its `params`, when present, is an array.
 By that theorem, the reader refuses a request without the version, with its parameters by name, or with an identifier of another type.
+A JSON value reads as a response exactly when it is an object of three members (`response_eq_ok_iff`).
+Its `jsonrpc` is the string `2.0`, and its `id` the identifier of the response.
+The third member is either `result`, of any value, or `error`, an error object.
+So the reader refuses a response with both a result and an error, or with neither.
+It also refuses a member of another name, and a response without the version.
 The error codes of the source come in groups.
 Every code of a group that declares a range lies in that range (`code_mem_range`, `Proofs/Rpc/Errors.lean`).
 No code appears twice (`codes_nodup`), and the code `4444` of pruned history is in no group (`prunedHistoryUnavailable_not_mem`).
