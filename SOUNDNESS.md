@@ -2544,6 +2544,7 @@ Each list of paths names one account node, or nodes of the storage trie of the a
 A path of 32 bytes is a full path, and a shorter one a compact partial path; `readPath_full` and `readPath_compact` (`Execution/Proofs/Network/Snap.lean`) state both readings.
 The check asks only for no more nodes than the request names, so an empty answer, the reply of a peer without the state, passes.
 `nodeCount_readGroup` counts one node per path after the first, and one for a list of one path, and `trieNodesAnswer_take` states that each prefix of an accepted answer is accepted.
+`SnapMessage.ofItem_eq_ok_iff` (`Execution/Proofs/Network/Snap.lean`) states that the decoder of snap reads a message exactly from its own ID and item, on a version that uses its ID.
 The nodes are requested by path, not by hash, so the check reads no node: a requester can check a node only once it holds the parent, and the source fixes no such check.
 The source leaves these points open, and the check takes one reading of each.
 
