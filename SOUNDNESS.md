@@ -3756,6 +3756,9 @@ Each writer writes the canonical form of the encoding: lowercase hex, and number
 The decoder of the parameters of `engine_newPayload` reads back what their writer writes, for a version that takes the fork of the payload (`newPayloadParams_json`, `Proofs/NewPayload.lean`).
 The extra data must hold at most 32 bytes, and the access list and the slot must be given exactly at version 5.
 So do the decoders of `engine_getPayload`, `engine_getBlobs` and the two methods of payload bodies (`getPayloadParams_json`, `Proofs/GetPayload.lean`; `getBlobsParams_json`, `Proofs/GetBlobs.lean`; `bodiesByHashParams_json` and `bodiesByRangeParams_json`, `Proofs/PayloadBodies.lean`).
+These four decoders read no JSON value other than what their writers write (`getPayloadParams_eq_ok_iff`, `Proofs/GetPayload.lean`; `getBlobsParams_eq_ok_iff`, `Proofs/GetBlobs.lean`; `bodiesByHashParams_eq_ok_iff` and `bodiesByRangeParams_eq_ok_iff`, `Proofs/PayloadBodies.lean`).
+Each takes an array of exactly the parameters of its method, all in lowercase hex: hashes, IDs and the bitarray, and 64-bit numbers without leading zeros.
+The bitarray of `engine_getBlobs` is given exactly from version 4.
 The decoder of payloads of versions 1 to 3 reads back the JSON of every payload at its fork (`anyPayload_executionPayloadJson`, `Proofs/Json.lean`).
 The extra data must then hold at most 32 bytes.
 The decoder of version 4 does the same from Dencun on, with the block access list and the slot number (`payloadV4_executionPayloadV4Json`).
