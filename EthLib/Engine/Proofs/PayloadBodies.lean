@@ -37,6 +37,8 @@ A range that starts past the latest known block has an empty answer.
 
 The decoders read back the parameters that the writers write.
 
+They read no other JSON value as parameters.
+
 A body reads back from its JSON at its version, and so does each answer.
 
 The withdrawals and the access list come back as `null` where they were `null`.
@@ -312,19 +314,64 @@ theorem getPayloadBodiesByRangeV2_eq_ok_iff (store : BodyStore) (start count : U
     obtain ⟨hs, hc, hle, rfl⟩ := (bodiesByRange_eq_ok_iff store start count bodies).1 hb
     simp [Functor.map, Except.map, hs, hc, hle, eq_comm, Function.comp_def]
 
+/-- A JSON value reads as a request by hash exactly when it is an array of one array of hashes.
+
+That array holds the hashes in order, each `0x` and 64 lowercase hex digits. -/
+theorem bodiesByHashParams_eq_ok_iff {params : Lean.Json} {hashes : List Hash32} :
+    bodiesByHashParams params = .ok hashes ↔
+      params = .arr #[.arr (hashes.map fun h => .str (hexString h.toList)).toArray] := by
+  cases params with
+  | arr items =>
+    obtain ⟨xs⟩ := items
+    simp only [bodiesByHashParams, Serialization.JsonRpc.paramsArray]
+    match xs with
+    | [] => simp [bind, Except.bind, pure, Except.pure]
+    | [h] =>
+      simp only [Lean.Json.arr.injEq, Array.mk.injEq, List.cons.injEq, and_true,
+        ← Serialization.JsonRpc.array_fixed_false_eq_ok_iff (what := "hashes")
+          (w := "block hash")]
+      simp [bind, Except.bind, pure, Except.pure]
+    | _ :: _ :: _ => simp [bind, Except.bind, pure, Except.pure]
+  | _ => simp [bodiesByHashParams, Serialization.JsonRpc.paramsArray, bind, Except.bind]
+
+/-- A JSON value reads as a request by range exactly when it is an array of two quantities.
+
+They are `start` and `count`, each `0x` and its lowercase hex digits without leading zeros. -/
+theorem bodiesByRangeParams_eq_ok_iff {params : Lean.Json} {start count : UInt64} :
+    bodiesByRangeParams params = .ok (start, count) ↔
+      params = .arr #[Serialization.JsonRpc.quantityJson start.toNat,
+        Serialization.JsonRpc.quantityJson count.toNat] := by
+  have read : ∀ (what : String) (j : Lean.Json) (x : UInt64),
+      Serialization.JsonRpc.uint64 what j = .ok x ↔
+        j = Serialization.JsonRpc.quantityJson x.toNat := fun what j x => by
+    rw [Serialization.JsonRpc.uint64_eq_ok_iff, Serialization.JsonRpc.quantity_eq_ok_iff]
+    exact and_iff_right x.toNat_lt
+  cases params with
+  | arr items =>
+    obtain ⟨xs⟩ := items
+    simp only [bodiesByRangeParams, Serialization.JsonRpc.paramsArray]
+    match xs with
+    | [] => simp [bind, Except.bind, pure, Except.pure]
+    | [_] => simp [bind, Except.bind, pure, Except.pure]
+    | [s, c] =>
+      simp only [Lean.Json.arr.injEq, Array.mk.injEq, List.cons.injEq, and_true,
+        ← read "start" s start, ← read "count" c count]
+      cases hs : Serialization.JsonRpc.uint64 "start" s <;>
+        cases hc : Serialization.JsonRpc.uint64 "count" c <;>
+        simp [hs, hc, bind, Except.bind, pure, Except.pure]
+    | _ :: _ :: _ :: _ => simp [bind, Except.bind, pure, Except.pure]
+  | _ => simp [bodiesByRangeParams, Serialization.JsonRpc.paramsArray, bind, Except.bind]
+
 /-- The decoder of a request by hash reads back the hashes that the writer writes. -/
 theorem bodiesByHashParams_json (hashes : List Hash32) :
-    bodiesByHashParams (bodiesByHashParamsJson hashes) = .ok hashes := by
-  simp [bodiesByHashParams, bodiesByHashParamsJson, Serialization.JsonRpc.paramsArray,
-    pure, Except.pure, bind, Except.bind, Serialization.JsonRpc.array_listJson,
-    Serialization.JsonRpc.fixed_dataJson]
-  simpa using mapM_eq_ok_map (g := id) (xs := hashes) fun _ _ => rfl
+    bodiesByHashParams (bodiesByHashParamsJson hashes) = .ok hashes :=
+  bodiesByHashParams_eq_ok_iff.mpr (by
+    simp [bodiesByHashParamsJson, Serialization.JsonRpc.listJson, Serialization.JsonRpc.dataJson])
 
 /-- The decoder of a request by range reads back the start and the count that the writer writes. -/
 theorem bodiesByRangeParams_json (start count : UInt64) :
-    bodiesByRangeParams (bodiesByRangeParamsJson start count) = .ok (start, count) := by
-  simp [bodiesByRangeParams, bodiesByRangeParamsJson, Serialization.JsonRpc.paramsArray,
-    pure, Except.pure, bind, Except.bind, Serialization.JsonRpc.uint64_toDigits]
+    bodiesByRangeParams (bodiesByRangeParamsJson start count) = .ok (start, count) :=
+  bodiesByRangeParams_eq_ok_iff.mpr rfl
 
 /-! ## The answer as JSON -/
 

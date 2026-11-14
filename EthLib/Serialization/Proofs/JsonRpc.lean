@@ -55,6 +55,8 @@ The encoder of lists writes what the list reader reads back, item by item.
 
 A byte string without uppercase digits decodes exactly from `0x` and two lowercase digits per byte.
 
+So does a list of such byte strings of one size, from the array of their encodings.
+
 An address, whose digits may be uppercase, decodes exactly from `0x` and two digits per byte.
 
 Each of those digits is in either case, and their lowercase forms are the hex encoding.
@@ -942,6 +944,30 @@ theorem fixed_false_eq_ok_iff {what : String} {n : Nat} {j : Lean.Json} {v : Vec
     fixed what n j false = .ok v ↔ j = .str (hexString v.toList) := by
   rw [fixed_eq_ok_iff, bytesOf_false_eq_ok_iff]
   exact Iff.rfl
+
+/-- A list of fixed-size byte strings without uppercase digits decodes exactly from its array.
+
+Item `i` of the array is `0x` and two lowercase hex digits per byte of item `i` of the list. -/
+theorem array_fixed_false_eq_ok_iff {what w : String} {n : Nat} {j : Lean.Json}
+    {l : List (Vector UInt8 n)} :
+    array what (fixed w n · false) j = .ok l ↔
+      j = .arr (l.map fun v => .str (hexString v.toList)).toArray := by
+  cases j with
+  | arr items =>
+    simp only [array, Lean.Json.arr.injEq]
+    rw [← Array.toList_inj, List.toList_toArray]
+    generalize items.toList = xs
+    induction xs generalizing l with
+    | nil => cases l <;> simp [pure, Except.pure]
+    | cons x xs ih =>
+      cases l with
+      | nil => rw [mapM_cons_ok]; simp
+      | cons v l =>
+        rw [mapM_cons_ok]
+        simp only at ih
+        simp [fixed_false_eq_ok_iff, ih]
+  -- Any other JSON value is not an array, so the read fails at once.
+  | _ => simp [array]
 
 /-! ## Uppercase digits -/
 

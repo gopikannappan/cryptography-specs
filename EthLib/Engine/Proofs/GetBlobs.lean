@@ -33,6 +33,8 @@ Cell `i` is selected exactly when bit `i mod 8` of byte `i / 8` of the bitarray 
 
 The decoder reads back the parameters that the writer writes.
 
+It reads no other JSON value as parameters.
+
 Each structure of the answer reads back from its JSON, and so does the answer of each version.
 
 The cells of version 4 decode only from two arrays of one length, with `null` at the same positions.
@@ -331,19 +333,67 @@ theorem getBlobsV4_length {pool : BlobPool} {hashes : List Bytes32} {bits : Cell
     (h : getBlobsV4 pool hashes bits = .ok (some l)) : l.length = hashes.length := by
   simp [getBlobsV4_eq_some h]
 
+/-- A JSON value reads as the parameters of a version exactly when it is an array of this form.
+
+Its first item is the array of the versioned hashes, each `0x` and 64 lowercase hex digits.
+
+Before version 4 it has no other item.
+
+From version 4 its second and last item is the bitarray, `0x` and 32 lowercase hex digits. -/
+theorem getBlobsParams_eq_ok_iff {version : Nat} {params : Lean.Json} {hashes : List Bytes32}
+    {bits : Option CellBitarray} :
+    getBlobsParams version params = .ok (hashes, bits) ↔
+      version < 4 ∧ bits = none ∧
+          params = .arr #[.arr (hashes.map fun h => .str (hexString h.toList)).toArray] ∨
+        4 ≤ version ∧ ∃ b, bits = some b ∧
+          params = .arr #[.arr (hashes.map fun h => .str (hexString h.toList)).toArray,
+            .str (hexString b.toList)] := by
+  have count : decide (getBlobsParamCount version = 2) = decide (4 ≤ version) := by
+    unfold getBlobsParamCount
+    by_cases hv : 4 ≤ version <;> simp [hv]
+  cases params with
+  | arr items =>
+    obtain ⟨xs⟩ := items
+    simp only [getBlobsParams, Serialization.JsonRpc.paramsArray, count]
+    by_cases hv : 4 ≤ version
+    · simp only [hv, decide_true, Nat.not_lt.mpr hv, false_and, false_or, true_and]
+      match xs with
+      | [] => simp [bind, Except.bind, pure, Except.pure]
+      | [_] => simp [bind, Except.bind, pure, Except.pure]
+      | [h, b] =>
+        simp only [Lean.Json.arr.injEq, Array.mk.injEq, List.cons.injEq, and_true,
+          ← Serialization.JsonRpc.array_fixed_false_eq_ok_iff (what := "hashes")
+            (w := "versioned hash")]
+        cases hh : Serialization.JsonRpc.array "hashes"
+          (Serialization.JsonRpc.fixed "versioned hash" 32 · false) h <;>
+          cases hb : Serialization.JsonRpc.fixed "indices_bitarray" CELL_BITARRAY_BYTES b false <;>
+          cases bits <;>
+          simp [hh, hb, bind, Except.bind, pure, Except.pure,
+            ← Serialization.JsonRpc.fixed_false_eq_ok_iff (what := "indices_bitarray")]
+      | _ :: _ :: _ :: _ => simp [bind, Except.bind, pure, Except.pure]
+    · simp only [hv, decide_false, Nat.not_le.mp hv, false_and, or_false, true_and]
+      match xs with
+      | [] => simp [bind, Except.bind, pure, Except.pure]
+      | [h] =>
+        simp only [Lean.Json.arr.injEq, Array.mk.injEq, List.cons.injEq, and_true,
+          ← Serialization.JsonRpc.array_fixed_false_eq_ok_iff (what := "hashes")
+            (w := "versioned hash")]
+        cases hh : Serialization.JsonRpc.array "hashes"
+          (Serialization.JsonRpc.fixed "versioned hash" 32 · false) h <;> cases bits <;>
+          simp [hh, bind, Except.bind, pure, Except.pure]
+      | _ :: _ :: _ => simp [bind, Except.bind, pure, Except.pure]
+  | _ => simp [getBlobsParams, Serialization.JsonRpc.paramsArray, bind, Except.bind]
+
 /-- The decoder of the parameters reads back the hashes and the bitarray that the writer writes.
 
 A bitarray is given exactly from version 4. -/
 theorem getBlobsParams_json {version : Nat} (hashes : List Bytes32)
     (bits : Option CellBitarray) (four : bits.isSome ↔ 4 ≤ version) :
     getBlobsParams version (getBlobsParamsJson hashes bits) = .ok (hashes, bits) := by
-  have hl : ∀ l : List Bytes32, List.mapM (fun x => (Except.ok x : Except String _)) l =
-      .ok l := fun l => by
-    simpa using mapM_eq_ok_map (g := id) (xs := l) fun _ _ => rfl
+  apply getBlobsParams_eq_ok_iff.mpr
   cases bits <;> simp at four <;>
-    simp [getBlobsParams, getBlobsParamsJson, getBlobsParamCount, four,
-      Serialization.JsonRpc.paramsArray, pure, Except.pure, bind, Except.bind,
-      Serialization.JsonRpc.array_listJson, Serialization.JsonRpc.fixed_dataJson, hl]
+    simp [four, getBlobsParamsJson, Serialization.JsonRpc.listJson,
+      Serialization.JsonRpc.dataJson]
 
 /-! ## The answer as JSON -/
 
