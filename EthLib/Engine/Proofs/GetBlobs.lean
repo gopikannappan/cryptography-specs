@@ -33,7 +33,7 @@ Cell `i` is selected exactly when bit `i mod 8` of byte `i / 8` of the bitarray 
 
 The decoder reads back the parameters that the writer writes.
 
-It reads no other JSON value as parameters.
+It reads no JSON value other than what the writer writes.
 
 Each structure of the answer reads back from its JSON, and so does the answer of each version.
 
@@ -333,13 +333,15 @@ theorem getBlobsV4_length {pool : BlobPool} {hashes : List Bytes32} {bits : Cell
     (h : getBlobsV4 pool hashes bits = .ok (some l)) : l.length = hashes.length := by
   simp [getBlobsV4_eq_some h]
 
-/-- A JSON value reads as the parameters of a version exactly when it is an array of this form.
+/-- A JSON value reads as the parameters of a version exactly when it is the array below.
 
-Its first item is the array of the versioned hashes, each `0x` and 64 lowercase hex digits.
+Its first item is the array of the versioned hashes in order, each `0x` and 64 lowercase hex digits.
 
 Before version 4 it has no other item.
 
-From version 4 its second and last item is the bitarray, `0x` and 32 lowercase hex digits. -/
+From version 4 its second and last item is the bitarray, `0x` and 32 lowercase hex digits.
+
+The bitarray is returned exactly from version 4. -/
 theorem getBlobsParams_eq_ok_iff {version : Nat} {params : Lean.Json} {hashes : List Bytes32}
     {bits : Option CellBitarray} :
     getBlobsParams version params = .ok (hashes, bits) ↔

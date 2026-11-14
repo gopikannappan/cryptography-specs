@@ -23,7 +23,7 @@ Versions 3 and 4 return one proof per blob, and versions 5 and 6 return 128 per 
 
 The decoder reads back the parameters that the writer writes.
 
-It reads no other JSON value as parameters.
+It reads no JSON value other than what the writer writes.
 
 The result of a response reads back at its version and its fork.
 

@@ -37,7 +37,7 @@ A range that starts past the latest known block has an empty answer.
 
 The decoders read back the parameters that the writers write.
 
-They read no other JSON value as parameters.
+They read no JSON value other than what the writers write.
 
 A body reads back from its JSON at its version, and so does each answer.
 
@@ -336,16 +336,13 @@ theorem bodiesByHashParams_eq_ok_iff {params : Lean.Json} {hashes : List Hash32}
 
 /-- A JSON value reads as a request by range exactly when it is an array of two quantities.
 
-They are `start` and `count`, each `0x` and its lowercase hex digits without leading zeros. -/
+The first is the start, and the second is the count.
+
+Each is `0x` and its lowercase hex digits, without leading zeros. -/
 theorem bodiesByRangeParams_eq_ok_iff {params : Lean.Json} {start count : UInt64} :
     bodiesByRangeParams params = .ok (start, count) ↔
       params = .arr #[Serialization.JsonRpc.quantityJson start.toNat,
         Serialization.JsonRpc.quantityJson count.toNat] := by
-  have read : ∀ (what : String) (j : Lean.Json) (x : UInt64),
-      Serialization.JsonRpc.uint64 what j = .ok x ↔
-        j = Serialization.JsonRpc.quantityJson x.toNat := fun what j x => by
-    rw [Serialization.JsonRpc.uint64_eq_ok_iff, Serialization.JsonRpc.quantity_eq_ok_iff]
-    exact and_iff_right x.toNat_lt
   cases params with
   | arr items =>
     obtain ⟨xs⟩ := items
@@ -355,7 +352,10 @@ theorem bodiesByRangeParams_eq_ok_iff {params : Lean.Json} {start count : UInt64
     | [_] => simp [bind, Except.bind, pure, Except.pure]
     | [s, c] =>
       simp only [Lean.Json.arr.injEq, Array.mk.injEq, List.cons.injEq, and_true,
-        ← read "start" s start, ← read "count" c count]
+        ← Serialization.JsonRpc.uint64_eq_ok_iff_quantityJson (what := "start")
+          (j := s) (x := start),
+        ← Serialization.JsonRpc.uint64_eq_ok_iff_quantityJson (what := "count")
+          (j := c) (x := count)]
       cases hs : Serialization.JsonRpc.uint64 "start" s <;>
         cases hc : Serialization.JsonRpc.uint64 "count" c <;>
         simp [hs, hc, bind, Except.bind, pure, Except.pure]
