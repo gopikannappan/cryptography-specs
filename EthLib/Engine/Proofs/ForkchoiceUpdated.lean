@@ -83,9 +83,9 @@ A structure that is not that of the fork, or a timestamp not above the head's, g
 
 The decoders read back the state, the attributes and the parameters that the writers write.
 
-A JSON value reads as a forkchoice response exactly when it holds a payload status and an ID.
+A JSON value reads as a forkchoice response exactly when it holds a payload status.
 
-Its members that are not `null` are these two alone.
+Its only other member that is not `null` may be an ID.
 
 The status is valid, invalid or syncing, and the ID 8 bytes in lowercase hex or absent.
 
@@ -1405,7 +1405,7 @@ theorem forkchoiceUpdatedResponseOfJson_json (s : PayloadStatus) (e : Option Str
 
 A member whose value is `null` counts as absent.
 
-Its other members are `payloadStatus` and `payloadId` alone.
+Its other members are `payloadStatus` and, if present, `payloadId`.
 
 The value of `payloadStatus` reads as the payload status and the validation error.
 
@@ -1436,7 +1436,9 @@ theorem forkchoiceUpdatedResponseOfJson_eq_ok_iff {j : Lean.Json} {s : PayloadSt
     constructor
     · rintro ⟨status, hs, ⟨s', e'⟩, hp, h⟩
       by_cases hr : s'.status.restricted = true
-      · simp only [hr, ite_true, bind_ok_iff, Json.lift_mapM_fixed_eq_ok_iff] at h
+      · simp only [hr, ite_true, bind_ok_iff,
+          Json.lift_mapM_eq_ok_iff fun _ _ =>
+            Serialization.JsonRpc.fixed_false_eq_ok_iff] at h
         obtain ⟨i, hi, h⟩ := h
         cases h
         exact ⟨⟨status, hs, hp⟩, restrictedIff.mp hr, hi⟩
@@ -1447,7 +1449,9 @@ theorem forkchoiceUpdatedResponseOfJson_eq_ok_iff {j : Lean.Json} {s : PayloadSt
         · cases h
     · rintro ⟨⟨status, hs, hp⟩, hr, hi⟩
       refine ⟨status, hs, (s, e), hp, ?_⟩
-      simp only [restrictedIff.mpr hr, ite_true, bind_ok_iff, Json.lift_mapM_fixed_eq_ok_iff]
+      simp only [restrictedIff.mpr hr, ite_true, bind_ok_iff,
+        Json.lift_mapM_eq_ok_iff fun _ _ =>
+          Serialization.JsonRpc.fixed_false_eq_ok_iff]
       exact ⟨id, hi, rfl⟩
   -- A member of another name fails with an invalid parameter, never with a response.
   · constructor

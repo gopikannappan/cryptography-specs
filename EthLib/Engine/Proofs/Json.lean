@@ -37,9 +37,11 @@ The extra data must then hold at most 32 bytes.
 
 A JSON value reads as a payload status exactly when it is an object of this form.
 
-Its members that are not `null` are `status`, `latestValidHash` and `validationError` alone.
+Its members that are not `null` are among `status`, `latestValidHash` and `validationError`.
 
-The status is one of the five names, the hash 32 bytes in lowercase hex, and the error a string.
+The status is one of the five status names, and it must be present.
+
+The hash is 32 bytes in lowercase hex, and the error a string.
 
 The hash and the error may be absent.
 -/
@@ -546,41 +548,25 @@ theorem statusOfName_eq_some_iff {name : String} {s : Status} :
   · rintro rfl
     exact statusOfName_name s
 
-/-- An optional byte string of a fixed size decodes exactly from the encoding of its bytes.
+/-- An optional value decodes exactly from the JSON of its value, and an absent value as absent.
 
-That encoding is `0x` and two lowercase hex digits per byte.
-
-An absent value decodes as absent. -/
-theorem lift_mapM_fixed_eq_ok_iff {what : String} {n : Nat} {o : Option Lean.Json}
-    {r : Option (Vector UInt8 n)} :
-    lift (o.mapM (fixed what n)) = .ok r ↔ o = r.map fun v => .str (hexString v.toList) := by
+This holds for every reader that decodes a value exactly from one JSON form of it. -/
+theorem lift_mapM_eq_ok_iff {α : Type} {f : Lean.Json → Read α} {g : α → Lean.Json}
+    (hf : ∀ j a, f j = .ok a ↔ j = g a) {o : Option Lean.Json} {r : Option α} :
+    lift (o.mapM f) = .ok r ↔ o = r.map g := by
   cases o with
   | none => cases r <;> simp [lift, Option.mapM, Except.mapError, pure, Except.pure]
   | some x =>
-    have e : lift (Option.mapM (fixed what n) (some x)) =
-        (some <$> fixed what n x : Read _).mapError .invalidParams := rfl
+    have e : lift (Option.mapM f (some x)) = (some <$> f x : Read _).mapError .invalidParams :=
+      rfl
     rw [e]
-    cases h : fixed what n x <;> cases r <;>
-      simp [Functor.map, Except.map, Except.mapError, ← fixed_false_eq_ok_iff (what := what), h]
-
-/-- An optional string decodes exactly from its JSON string, and an absent value as absent. -/
-theorem lift_mapM_string_eq_ok_iff {what : String} {o : Option Lean.Json}
-    {r : Option String} :
-    lift (o.mapM (string what)) = .ok r ↔ o = r.map .str := by
-  cases o with
-  | none => cases r <;> simp [lift, Option.mapM, Except.mapError, pure, Except.pure]
-  | some x =>
-    have e : lift (Option.mapM (string what) (some x)) =
-        (some <$> string what x : Read _).mapError .invalidParams := rfl
-    rw [e]
-    cases h : string what x <;> cases r <;>
-      simp [Functor.map, Except.map, Except.mapError, ← string_eq_ok_iff (what := what), h]
+    cases h : f x <;> cases r <;> simp [Functor.map, Except.map, Except.mapError, ← hf, h]
 
 /-- A JSON value reads as a payload status exactly when it is an object of the form below.
 
 A member whose value is `null` counts as absent.
 
-Its other members are `status`, `latestValidHash` and `validationError` alone.
+Its other members are `status` and, if present, `latestValidHash` and `validationError`.
 
 The value of `status` is the name of the status.
 
@@ -612,7 +598,8 @@ theorem payloadStatusOfJson_eq_ok_iff {j : Lean.Json} {s : PayloadStatus} {e : O
         cases h
       | some st' =>
         rw [hn] at h
-        simp only [bind_ok_iff, lift_mapM_fixed_eq_ok_iff, lift_mapM_string_eq_ok_iff] at h
+        simp only [bind_ok_iff, lift_mapM_eq_ok_iff fun _ _ => fixed_false_eq_ok_iff,
+          lift_mapM_eq_ok_iff fun _ _ => string_eq_ok_iff] at h
         obtain ⟨l, hl, v, hv, h⟩ := h
         cases h
         obtain rfl := statusOfName_eq_some_iff.mp hn
@@ -620,7 +607,8 @@ theorem payloadStatusOfJson_eq_ok_iff {j : Lean.Json} {s : PayloadStatus} {e : O
     · rintro ⟨hs, hl, he⟩
       refine ⟨_, hs, st.name, rfl, ?_⟩
       rw [statusOfName_name]
-      simp only [bind_ok_iff, lift_mapM_fixed_eq_ok_iff, lift_mapM_string_eq_ok_iff]
+      simp only [bind_ok_iff, lift_mapM_eq_ok_iff fun _ _ => fixed_false_eq_ok_iff,
+        lift_mapM_eq_ok_iff fun _ _ => string_eq_ok_iff]
       exact ⟨lvh, hl, e, he, rfl⟩
   -- A member of another name fails with an invalid parameter, never with a status.
   · constructor
