@@ -2192,6 +2192,7 @@ On the proof-of-stake networks that the session assumes, NewBlockHashes and NewB
 `sendEth_beforeStatus`, `sendEth_beforeOwnStatus` and `sendEth_pending` state the sending steps.
 `run_sentTxs` and `run_no_resend` state that along any run of a session, a Transactions message sends no transaction that went out before, and none that the peer sent before it.
 `snapAllowed_iff` states that the requirement holds exactly when a capability named eth is shared.
+`Message.ofItem_eq_ok_iff` (`Execution/Proofs/Network/Message.lean`) states that the decoder reads a message exactly from its own ID and item, on a version that uses its form.
 The session pairs a response with its request; the content of the response is judged apart, by `checkHeaders`, `receiptsMatch` and the other checks.
 
 The source leaves five points open, and the session decides none of them.
