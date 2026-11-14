@@ -15,11 +15,9 @@ For Ping and Pong the full list ends with the sequence number of EIP-868.
 
 Without that number, the items after the first extra item are ignored.
 
-The reader accepts no other items.
+A packet reads only from its own type and its fields, followed by any items.
 
-A packet reads exactly from its own type and its fields, followed by any items.
-
-Ping and Pong without the sequence number take no item after their fields.
+A Ping or a Pong reads without a sequence number only when no item follows its fields.
 
 A packet whose hash does not match the bytes after it is rejected.
 
@@ -149,7 +147,7 @@ theorem Packet.ofItems_pong_append (t : Endpoint) (h : Vector UInt8 32) (e : Nat
 
 /-! ## The items that the reader accepts -/
 
-/-- The items after the fixed fields give a sequence number exactly when it is their first item.
+/-- The items after the fixed fields give a sequence number exactly when it is the first of them.
 
 They give none exactly when there are no such items. -/
 private theorem Packet.readEnrSeq_eq_ok_iff {rest : List Item} {s : Option UInt64} :
@@ -166,11 +164,11 @@ private theorem Packet.readEnrSeq_eq_ok_iff {rest : List Item} {s : Option UInt6
       exact eq_comm
 
 /--
-The reader takes a packet from a type and items exactly when they are its type and its fields.
+The reader takes a packet exactly when the type is its type and the items start with its fields.
 
 Any items may follow the fields, as EIP-8 asks.
 
-A Ping or a Pong without the sequence number of EIP-868 has no item after its fields.
+A Ping or a Pong reads without the sequence number of EIP-868 only when no item follows its fields.
 -/
 theorem Packet.ofItems_eq_ok_iff {type : UInt8} {items : List Item} {p : Packet} :
     Packet.ofItems type items = .ok p ↔
