@@ -3778,6 +3778,14 @@ The other two examples are of methods that EthLib does not specify, and the test
 The answers have a JSON form too, written and read back.
 The decoder of a payload status reads back what its writer writes, for every status and validation error (`payloadStatusOfJson_json`, `Proofs/Json.lean`).
 The decoder of the response of `engine_forkchoiceUpdated` does the same for each status that the method answers (`forkchoiceUpdatedResponseOfJson_json`, `Proofs/ForkchoiceUpdated.lean`).
+A JSON value reads as a payload status exactly when it is an object of this form (`payloadStatusOfJson_eq_ok_iff`, `Proofs/Json.lean`).
+Its members that are not `null` are `status` and, if present, `latestValidHash` and `validationError`.
+Its `status` is one of the five status names, its `latestValidHash` 32 bytes or absent, and its `validationError` a string or absent.
+A name reads as a status exactly when it is the name of that status (`statusOfName_eq_some_iff`, `Proofs/Json.lean`).
+A JSON value reads as a forkchoice response exactly when it is an object of this form (`forkchoiceUpdatedResponseOfJson_eq_ok_iff`, `Proofs/ForkchoiceUpdated.lean`).
+Its members that are not `null` are `payloadStatus` and, if present, `payloadId`.
+Its `payloadStatus` reads as a status that is valid, invalid or syncing, and its `payloadId` is 8 bytes or absent.
+The bytes of the hash and of the ID are in lowercase hex, as the patterns of [`base-types.yaml`](https://github.com/ethereum/execution-apis/blob/3284ee80c3da3e516c53782dde75157cccf1ebdc/src/schemas/base-types.yaml) ask, so the readers refuse uppercase digits.
 Every answer of that method is `VALID`, `INVALID` or `SYNCING`, the restriction of step 9 of the method (`forkchoiceUpdatedCall_status`).
 So the decoder reads back the response of every call (`forkchoiceUpdatedResponseOfJson_call`).
 Its response names a build exactly when the update applies a head and the attributes pass their checks (`forkchoiceUpdatedResponse_payloadId`).

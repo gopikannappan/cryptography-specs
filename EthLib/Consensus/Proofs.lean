@@ -247,6 +247,7 @@ public import EthLib.Consensus.Proofs.Transition.Totality.BuilderPayments
 public import EthLib.Consensus.Proofs.Transition.Totality.ChainHolds
 public import EthLib.Consensus.Proofs.Transition.Totality.Consolidations
 public import EthLib.Consensus.Proofs.Transition.Totality.EffectiveBalances
+public import EthLib.Consensus.Proofs.Transition.Totality.EffectiveBlock
 public import EthLib.Consensus.Proofs.Transition.Totality.EpochAltair
 public import EthLib.Consensus.Proofs.Transition.Totality.EpochElectra
 public import EthLib.Consensus.Proofs.Transition.Totality.EpochExits
@@ -279,6 +280,7 @@ public import EthLib.Consensus.Proofs.Transition.Totality.RunUpgrades
 public import EthLib.Consensus.Proofs.Transition.Totality.Shape
 public import EthLib.Consensus.Proofs.Transition.Totality.ShapeBlock
 public import EthLib.Consensus.Proofs.Transition.Totality.Signers
+public import EthLib.Consensus.Proofs.Transition.Totality.SlashedBlock
 public import EthLib.Consensus.Proofs.Transition.Totality.Slashings
 public import EthLib.Consensus.Proofs.Transition.Totality.Slot
 public import EthLib.Consensus.Proofs.Transition.Totality.Supply
