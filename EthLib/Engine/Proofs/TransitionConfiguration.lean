@@ -11,7 +11,7 @@ A configuration reads back from its JSON.
 
 A JSON value reads as a configuration exactly when it holds the three members in canonical form.
 
-The block hash is then in lowercase hex, as the pattern of `base-types.yaml` asks.
+The block hash is then in lowercase hex, and the two numbers have no leading zeros.
 
 The method succeeds exactly when the request holds one parameter that decodes as a configuration.
 
@@ -81,19 +81,19 @@ theorem transitionConfigurationOfJson_eq_ok_iff {j : Lean.Json} {c : TransitionC
       ["terminalTotalDifficulty", "terminalBlockHash", "terminalBlockNumber"] = true
   · rw [and_iff_right hex]
     simp only [hex, ↓reduceIte, bind_ok_iff, Json.liftM_eq_ok_iff, field_eq_ok_iff,
-      quantity_eq_ok_iff, fixed_false_eq_ok_iff, uint64_eq_ok_iff, pure, Except.pure,
+      quantity_eq_ok_iff, fixed_false_eq_ok_iff, uint64_eq_ok_iff_quantityJson, pure, Except.pure,
       Except.ok.injEq]
     obtain ⟨t, h, n⟩ := c
     constructor
-    · rintro ⟨_, ht, v, ⟨hv, rfl⟩, _, hh, h, rfl, _, hn, n, ⟨-, rfl⟩, he⟩
+    · rintro ⟨_, ht, v, ⟨hv, rfl⟩, _, hh, h, rfl, _, hn, n, rfl, he⟩
       simp only [TransitionConfiguration.mk.injEq] at he
       obtain ⟨rfl, rfl, rfl⟩ := he
       simp only [BitVec.toNat_ofNat, Nat.mod_eq_of_lt hv]
       exact ⟨ht, hh, hn⟩
     · rintro ⟨ht, hh, hn⟩
-      exact ⟨_, ht, t.toNat, ⟨t.isLt, rfl⟩, _, hh, h, rfl, _, hn, n, ⟨n.toNat_lt, rfl⟩,
+      exact ⟨_, ht, t.toNat, ⟨t.isLt, rfl⟩, _, hh, h, rfl, _, hn, n, rfl,
         by simp⟩
-  -- Members of other names fail with an invalid parameter, never with a configuration.
+  -- Any other set of members fails with an invalid parameter, never with a configuration.
   · simp only [hex, Bool.false_eq_true, ↓reduceIte]
     simp [bind, Except.bind]
 

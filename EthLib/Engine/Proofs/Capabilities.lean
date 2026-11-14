@@ -22,9 +22,9 @@ Each method succeeds exactly when its request decodes, and then answers what the
 
 A version object reads back from its JSON when its code is two letters, and only then.
 
-A JSON value reads as a version object exactly when it holds the four members in canonical form.
+A JSON value reads as a version object exactly when it holds the four members.
 
-The commit is then in lowercase hex, as the pattern of `base-types.yaml` asks.
+Its code is then two letters, and its commit is in lowercase hex.
 -/
 
 public section
@@ -347,7 +347,7 @@ theorem clientVersionOfJson_eq_ok_iff {j : Lean.Json} {v : ClientVersion} :
     clientVersionOfJson j = .ok v ↔
       ∃ fs, fields "clientVersion" j = .ok fs ∧
         hasExactly fs ["code", "name", "version", "commit"] = true ∧
-        v.code.toList.length = 2 ∧ v.code.toList.all Char.isAlpha = true ∧
+        IsClientCode v.code ∧
         fs.lookup "code" = some (.str v.code) ∧ fs.lookup "name" = some (.str v.name) ∧
         fs.lookup "version" = some (.str v.version) ∧
         fs.lookup "commit" = some (.str (hexString v.commit.toList)) := by
@@ -367,24 +367,24 @@ theorem clientVersionOfJson_eq_ok_iff {j : Lean.Json} {v : ClientVersion} :
           Except.ok.injEq] at h
         obtain ⟨_, hn, name, rfl, _, hv, version, rfl, _, hm, commit, rfl, he⟩ := h
         cases he
-        exact ⟨hcc.1, hcc.2, hc, hn, hv, hm⟩
+        exact ⟨hcc, hc, hn, hv, hm⟩
       -- A code that is not two letters fails with an invalid parameter.
       · simp [decide_eq_false hcc, bind, Except.bind] at h
-    · rintro ⟨h1, h2, hc, hn, hv, hm⟩
+    · rintro ⟨hcc, hc, hn, hv, hm⟩
       refine ⟨_, hc, code, rfl, ?_⟩
-      simp only [decide_eq_true (show IsClientCode code from ⟨h1, h2⟩), ↓reduceIte,
+      simp only [decide_eq_true hcc, ↓reduceIte,
         bind_ok_iff, Json.liftM_eq_ok_iff, field_eq_ok_iff, string_eq_ok_iff,
         fixed_false_eq_ok_iff, pure, Except.pure, Except.ok.injEq]
       exact ⟨_, hn, name, rfl, _, hv, version, rfl, _, hm, commit, rfl, rfl⟩
-  -- Members of other names fail with an invalid parameter, never with a version object.
+  -- Any other set of members fails with an invalid parameter, never with a version object.
   · simp only [hex, Bool.false_eq_true, ↓reduceIte]
     simp [bind, Except.bind]
 
 /-- A version object that decodes has a code of two letters. -/
 theorem isClientCode_of_clientVersionOfJson {j : Lean.Json} {v : ClientVersion}
     (h : clientVersionOfJson j = .ok v) : IsClientCode v.code :=
-  let ⟨_, _, _, length, letters, _⟩ := clientVersionOfJson_eq_ok_iff.mp h
-  ⟨length, letters⟩
+  let ⟨_, _, _, code, _⟩ := clientVersionOfJson_eq_ok_iff.mp h
+  code
 
 /-- The method succeeds exactly on one parameter that decodes, and then answers its own object.
 -/

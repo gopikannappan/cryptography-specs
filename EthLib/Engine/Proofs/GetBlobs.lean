@@ -39,7 +39,7 @@ Each structure of the answer reads back from its JSON, and so does the answer of
 
 A JSON value reads as a blob with its proof, or with its cell proofs, exactly in canonical form.
 
-Each blob and proof is then in lowercase hex, as the pattern of `base-types.yaml` asks.
+Each blob and proof is then in lowercase hex.
 
 The cells of version 4 decode only from two arrays of one length, with `null` at the same positions.
 -/
@@ -471,10 +471,10 @@ theorem blobAndProofV1OfJson_eq_ok_iff {j : Lean.Json} {x : BlobAndProofV1} :
       exact ⟨hb, hp⟩
     · rintro ⟨hb, hp⟩
       exact ⟨_, hb, blob, rfl, _, hp, proof, rfl, rfl⟩
-  -- Members of other names fail, never with a blob.
+  -- Any other set of members fails, never with a blob.
   · simp [hex, bind, Except.bind, Serialization.JsonRpc.reject]
 
-/-- A JSON value reads as a blob and its cell proofs exactly when it is an object of this form.
+/-- A JSON value reads as a blob and its cell proofs exactly when it is an object of the form below.
 
 A member whose value is `null` counts as absent.
 
@@ -511,7 +511,7 @@ theorem blobAndProofV2OfJson_eq_ok_iff {j : Lean.Json} {x : BlobAndProofV2} :
       simp only [Vector.length_toList, ↓reduceDIte, pure, Except.pure]
       rcases proofs with ⟨⟨l⟩, h⟩
       rfl
-  -- Members of other names fail, never with a blob.
+  -- Any other set of members fails, never with a blob.
   · simp [hex, bind, Except.bind, Serialization.JsonRpc.reject]
 
 /-- A list of optional byte strings of a size reads back from its encoding as data. -/
