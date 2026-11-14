@@ -10,7 +10,7 @@ Each error of the light client has its own code.
 
 An update passes its checks against a store exactly when each check of the protocol holds.
 
-These include the order of its slots, its signature period, and its use to the store.
+These include the order of its slots, its signature period, and whether the store can use it.
 
 The ranking of updates is a strict weak order.
 
@@ -668,25 +668,33 @@ variable {preset : Preset} {fork : Fork}
 /--
 An update passes its checks against a store exactly when each check of the sync protocol holds.
 
-The fork has a light client, enough members sign, and the attested header is valid.
+The fork has a light client, enough bits of the aggregate are set, and the attested header is valid.
 
 The signature slot is at most the current slot and after the attested slot.
 
 The finalized slot is at most the attested slot.
 
-The signature period is the period of the store, or the next one if the store knows its committee.
+The signature period is the period of the store.
 
-The attested slot is after the finalized slot of the store.
+If the store knows a next committee, the signature period can also be the next period.
 
-Otherwise the update proves the first next committee, from an attested slot in the store's period.
+The attested slot is after the finalized slot of the store, or the update brings a next committee.
+
+It brings one when the store has none and the update carries one.
+
+Its attested slot must also be in the period of the store.
 
 The finality check passes, and an update without a committee branch carries the zero committee.
 
 An update with a committee branch passes its branch check.
 
-From an attested slot in the store's period, its committee is the next committee the store knows.
+If the store knows a next committee, a carried one from an attested slot in its period equals it.
 
-The committee of the signature period signs the signing root of the attested header.
+The signing root of the attested header can be computed.
+
+The signature check takes the keys of the signing members of the committee of the signature period.
+
+It accepts them on that signing root.
 -/
 theorem validateLightClientUpdate_eq_ok_iff {config : Config} {checks : SignatureChecks}
     {store : LightClientStore preset fork} {update : LightClientUpdate preset fork}

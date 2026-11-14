@@ -3341,8 +3341,10 @@ A light client accepts an update that the sync committee signed, and moves its s
 At least the minimum of bits of its aggregate are set.
 The signature check accepts the keys of those members on the signing root of the attested header.
 The finality branch and the branch of a carried next committee verify against the state root of that header.
-`validateLightClientUpdate_eq_ok_iff` (`Consensus/Proofs/LightClient/Sync.lean`) states the whole check: an update passes exactly when each of its checks holds.
-Beyond the checks above, the signature slot is at most the current slot and after the attested slot.
+`validateLightClientUpdate_eq_ok_iff` (`Consensus/Proofs/LightClient/Sync.lean`) lists every check, and shows that an update that passes them all is accepted.
+Beyond the checks above, the fork is Altair or later, and the attested header is valid.
+An update without a committee branch carries the zero committee.
+The signature slot is at most the current slot and after the attested slot.
 The attested slot is at or after the finalized slot of the update.
 The signature period is the period of the store, or the next one when the store knows the next committee.
 The attested slot is after the finalized slot of the store, unless the update brings the first next committee of the period of the store.
