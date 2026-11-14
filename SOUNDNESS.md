@@ -4136,9 +4136,13 @@ A sender that holds less than the value of its request gets no data (`ethCall_ne
 A request makes a transaction exactly when it passes the checks of its kind (`exists_toTransaction_eq_ok_iff`).
 Its kind is at most 4, and a request of type 3 or 4 names a recipient.
 A gas price, a fee cap, a priority fee, an access list, blob hashes, a blob fee cap or authorizations appear only in the kinds that carry them.
+The schema ties none of its fields to the kind, so these checks are choices of EthLib.
 A chain that it names is that of the node.
 The nonce, the gas limit and the fee cap that the call gives are below `2^256`.
 So is each number of the request that the transaction carries.
+The blobs, commitments and proofs of the schema are not checked, for any kind, and they leave the result of the conversion unchanged (`toTransaction_sidecar`).
+They are the sidecar of a blob transaction, which its network form carries and its block form does not, and the message of a call never reads them.
+Once the request is read, they leave the answer of the call unchanged too (`ethCall_sidecar`); its reader only checks that each one is hex bytes.
 That transaction has the kind, value, recipient, data and lists of the request, and the nonce and gas limit that the call gives (`type_of_toTransaction_eq_ok` and the lemmas next to it).
 Its fee cap is the gas price of the request, or 0, up to type 1, and the cap that the call gives from type 2.
 Its price per gas is that gas price up to type 1.
