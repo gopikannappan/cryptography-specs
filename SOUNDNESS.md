@@ -2168,6 +2168,7 @@ An ID from `0x10` on goes to the shared capability that holds it, and `route` gi
 `Message.ofItem_eq_ok_iff` (`Networking/Proofs/Devp2p/P2p.lean`) states that a message is read only from its own ID and its own items, and that only Hello takes further items after its fields.
 `Hello.ofItem_eq_ok_iff` states that Hello is read from a list exactly when the list starts with the items of its five fields, whatever items follow, as EIP-8 asks.
 `messageCount_le_iff_unknownId` (`Execution/Proofs/Network/Message.lean`) states that the IDs an eth version holds are those below the first ID from which its decoder rejects every ID as unknown.
+`Message.ofItem_eq_ok_iff` (`Execution/Proofs/Network/Message.lean`) states that the eth decoder reads a message exactly from its own ID and item, on a version that uses its form.
 No theorem says anything about a sequence of frames beyond one step, or about timeouts.
 
 The source leaves three points open, and the session reads them as follows.
@@ -4681,7 +4682,7 @@ These cases of code 500 remain without a theorem:
   On mainnet and minimal the type of the registry excludes the first, by `BeaconState.registryWithinLimit_of_lt`.
   On those presets, `drawFits_presets` and `Run.effectiveBalance_capped` exclude the second along a run from genesis.
   The draw also fails for an epoch within `EPOCHS_PER_HISTORICAL_VECTOR` of `2^64`, which the current epoch of a mainnet or minimal state never is.
-  `getBeaconProposerIndices_ok` shows that the draw succeeds under bounds when an active validator is at the cap of the draw.
+  `getBeaconProposerIndices_ok` shows that the draw succeeds under bounds when the draws of the epoch end (`ProposersDrawEnd`), as they do when an active validator is at the cap of the draw.
   No theorem carries that to the answers yet.
 - The committee assignment of the attester answer and the PTC assignment give code 500 for any fault but an epoch out of range.
   On mainnet and minimal the attester fault needs more than `2^40` active validators, or an epoch or a slot near `2^64`.
@@ -5549,16 +5550,19 @@ The current epoch plus one must fit in 64 bits.
 The source is debited before the target is credited, so the budget also covers equal source and target indices.
 
 From Altair, the sync committee update succeeds (`processSyncCommitteeUpdates_ok`) under the assumptions of `SyncDrawable`, asked only when the next epoch starts a period.
-One validator active in the next epoch must have the largest effective balance of the draw (`drawCap`), and no validator may have more.
+The draw of the committee must end at the seed of the next epoch (`SyncDrawEnds`).
+That is an assumption, not a bound that an epoch keeps.
+`SyncDrawEnds.of_atCap` meets it with one validator active in the next epoch at the largest effective balance of the draw (`drawCap`), and no validator above it.
 Before Electra that balance is 32 ETH, and from Electra it is the cap of a compounding validator, 2048 ETH.
-This is an assumption on the registry, not a bound that an epoch keeps: such a validator may never join, or may exit.
-The draw accepts such a validator on every pass over the candidates, so the committee fills within as many passes as members; `balanceWeightedSearch_ok` proves it.
-Without such a validator, whether the draw ends before its counter reaches `2^64` depends on the hashes, and the theorem says nothing.
-Before Electra, every effective balance must be at most 32 ETH, which the bound of 2048 ETH in the other totality theorems does not imply.
+Such a validator may never join, or may exit.
+The draw accepts it on every pass over the candidates, so the committee fills within as many passes as members; `balanceWeightedSearch_ok` proves it.
+That form also needs the products of the draw to fit in 64 bits (`DrawFits`), and the committee size times the registry size to stay below `2^64`.
+Without such a validator, whether the draw ends before its counter reaches `2^64` depends on the hashes.
+In the random oracle model, `prEvent_querySearch_fails_le` (`Consensus/Proofs/Accessors/SearchRandomOracle.lean`) bounds the chance that one search fails.
 Every key of the registry must also pass key validation, as each deposit checks before a validator joins; no theorem yet proves that along a chain.
-The registry holds at most `2^40` validators, and the committee size times the registry size stays below `2^64`.
+The registry holds at most `2^40` validators.
 The next epoch plus the length of the history of mixes must fit in 64 bits, and the seed lookahead must be shorter than that history.
-The products of the draw must fit in 64 bits (`DrawFits`), and the preset must give a sync committee of at least one member.
+The preset must give a sync committee of at least one member.
 The keys of an empty committee have no aggregate, so with no member the update would fail at every period.
 `drawFits_presets`, `seedLookahead_lt_presets` and `syncCommitteeSize_ne_zero_presets` prove the three facts on the preset for mainnet and minimal.
 
@@ -5597,20 +5601,26 @@ On mainnet, from scores of zero, that is 2251799 epochs, about 27 years, and the
 The state at the start must keep the facts of a run (`RunHolds`).
 They are the invariant of the state transition, the shape of the state and the bounds of the start.
 They also include `JustifiedEarly`, and before Altair the facts that a block checked on each pending attestation.
-No theorem yet shows that block processing keeps `PendingWellFormed`, `PendingResolved` and the bounds, so the theorem says nothing about a chain with blocks.
 The run also takes three hypotheses on the states it reaches, which no bound gives.
 `SignersEarly`: in the first two epochs of the run, the signers of the previous epoch hold at most the active balance; a validator that signed and exits at the epoch boundary can break it, and from the third epoch no one has signed.
-`DrawsAtCap`: each draw of a sync committee, of the proposers and of a payload committee meets a validator at the cap of its fork, and the upgrade to Heze finds its two deposit indices equal.
+`DrawsEnd`: each draw of a sync committee, of the proposers and of a payload committee ends, at the state it reads and under the bounds that the run proves there, and the upgrade to Heze finds its two deposit indices equal.
 `EpochLimitBeforeAltair`: a run that starts before Altair ends by an epoch at which the inactivity penalty fits, at least `9 * 10^6` on mainnet.
-From Electra the run that the theorem covers is much shorter than the horizon, which only bounds the arithmetic.
+`DrawsAtCap.drawsEnd` (`Proofs/Transition/Totality/RunHypotheses.lean`) meets `DrawsEnd` with `DrawsAtCap` and `DrawFits` at every fork, state by state: each draw meets a validator at the cap of its fork.
+From Electra, that form holds only for short runs.
 A run of empty slots finalizes nothing, so once finality is more than four epochs behind, every validator leaks.
 A validator stays at the cap of the draw only while its balance is at most 0.25 ETH below the cap.
 From a balance of 2048 ETH and a score of zero, the inactivity penalties alone take it below within 64 epochs of leak.
 Even a balance of 36 million ETH falls below within about `7.7 * 10^5` epochs.
 Before Electra the cap is 32 ETH, so a balance far above it can keep the effective balance at the cap past the horizon; from Electra the cap is 2048 ETH and the leak exhausts any balance within the supply bound.
-So from Electra the runs that meet `DrawsAtCap` are far shorter than the horizon, and the mainnet theorem says nothing for longer runs.
+So from Electra the runs that meet `DrawsAtCap` are far shorter than the horizon.
+`DrawsEnd` needs no validator at the cap: a draw accepts any balance at most the cap with probability at least `2^-b`, where a draw reads `b` bits, 8 before Electra and 16 from Electra.
+In the random oracle model, `prEvent_querySearch_fails_le` bounds the chance that one balance-weighted search fails, for a fixed seed and `n` members, by `n * (1 - 2^-b)^k` with `k` the floor of `(2^64 - 1) / n`.
+That is a bound on a probability, not a fact about SHA-256, so `DrawsEnd` stays a hypothesis.
+No theorem sums the bound over the draws of a run: a draw input may equal the seed input of a slot, and the oracle search caches every draw input of its seed.
+Before Gloas a proposer draw ends whenever a selection of one member ends (`computeProposerIndex_of_computeBalanceWeightedSelection`), so the bound with `n = 1` applies to it, though no theorem states that composition.
+The bound needs at least one candidate: a draw with none fails for any hash, so `DrawsEnd` also needs an active validator, unslashed from Gloas for the proposers, in each draw.
 `processSlotsAcross_exists_ok_emptyGenesisState` shows that the hypotheses can hold together with an empty registry before Altair.
-`runHypotheses_of_quiet_altair` (`Proofs/Transition/Totality/RunFromAltair.lean`) gives the three hypotheses for a run from Altair that ends before the Electra fork epoch.
+`runHypotheses_of_quiet_altair` (`Proofs/Transition/Totality/RunFromAltair.lean`) gives `SignersEarly`, `DrawsAtCap` and `EpochLimitBeforeAltair` for a run from Altair that ends before the Electra fork epoch; `DrawsAtCap.drawsEnd` turns the second into `DrawsEnd`.
 It needs a state where no one has voted, every key is valid, every inactivity score is bounded, and one validator at the cap has a balance that covers the leak.
 The preset must also have aligned caps, a cap above the ejection balance and positive inactivity quotients, which mainnet has.
 `processSlotsAcross_exists_ok_altairWitnessState` (`Proofs/Transition/Totality/AltairWitness.lean`) applies it to a mainnet state at the Altair fork epoch with one validator of `10^5` ETH.
@@ -5618,7 +5628,27 @@ Every slot advance from that state up to the last slot before the Electra fork e
 The leak and the missed-vote penalties take at most about `9.886 * 10^4` ETH in that time, so the effective balance stays at 32 ETH.
 The witness is a valid state under the mainnet preset, but no mainnet genesis leads to it: it has one validator and no history.
 No witness yet covers a run across the Electra fork epoch.
-Without a validator at the cap, whether a draw ends depends on the hashes; a theorem without `DrawsAtCap` would need a model of the hash, such as a random oracle.
+
+`processSlotsAcross_exists_ok_of_chain` (`Proofs/Transition/Totality/ChainRun.lean`) extends the run theorem to a chain with blocks.
+Each block of the chain is one that the transition accepts.
+Each block must stay within stated limits on its body (`BlockBounded`), and each raises the bounds by a fixed step (`BlockStep.Covers`).
+The protocol does not cap the Gwei that deposits bring in, so that limit is an assumption on the chain.
+The step charges each block the most rewards that any block can pay within the budget.
+It takes the base reward per increment at its largest, when the total active balance is one increment.
+It does not read the rewards that the attestations earn.
+On mainnet that is about 70,640 ETH a block at a budget of `2^57` Gwei.
+So the mainnet corollary covers 16 epochs, not the horizon of the scores.
+From Electra one attester slashing may name `2048 * 64` validators.
+A step that covers that many names would pass `2^64` Gwei over the 544 blocks of 16 epochs.
+So the slashing limit is far below what the protocol allows at every fork: the mainnet corollary allows `2^10` slashed validators in a block.
+A tight bound would read the flags that the attestations set.
+It needs the flags to be set only at active validators.
+It also needs the previous active balance to stay near the current one.
+Neither is proved.
+Blocks carry attestations, so the chain takes `SignersAtEnds` in place of `SignersEarly`.
+The signers then hold at most the active balance at the end of every epoch, not only the first two.
+The theorem also assumes a positive inclusion delay, a positive withdrawal delay, and an increment at most the activation balance; mainnet meets all three.
+`processSlotsAcross_exists_ok_of_chain_altairWitnessState` instantiates the mainnet corollary at the Altair witness, so its hypotheses can hold together.
 
 Whatever those hypotheses leave unproved is part of what a reader trusts.
 
