@@ -83,9 +83,9 @@ A structure that is not that of the fork, or a timestamp not above the head's, g
 
 The decoders read back the state, the attributes and the parameters that the writers write.
 
-A JSON value reads as a forkchoice response exactly when it holds a payload status.
+A JSON value reads as a forkchoice response exactly when it is an object of this form.
 
-Its only other member that is not `null` may be an ID.
+It holds a payload status, and its only other member that is not `null` may be an ID.
 
 The status is valid, invalid or syncing, and the ID 8 bytes in lowercase hex or absent.
 
