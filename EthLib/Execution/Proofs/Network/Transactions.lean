@@ -48,9 +48,11 @@ theorem ofItem_eth68_of_eth72 {version : EthVersion} (hv : version < .eth72) (t 
 
 /-- An announcement reads exactly from its own RLP item, on a version that uses its form.
 
-eth/68 to eth/71 read only the three fields of its form, and eth/72 only the four of its own.
+eth/68 to eth/71 read only the three fields of the older form, and eth/72 only the four of its own.
 
-The reader does not check the lengths of the lists. -/
+This reader does not check the lengths of the lists.
+
+The decoder of messages does. -/
 theorem ofItem_eq_ok_iff {version : EthVersion} {item : Item} {a : Announcement} :
     ofItem version item = .ok a ↔
       item = a.toItem ∧ match a with

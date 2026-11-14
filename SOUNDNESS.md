@@ -2166,6 +2166,7 @@ An ID from `0x10` on goes to the shared capability that holds it, and `route` gi
 `route_negotiate` states that each ID a shared capability holds routes to it, and `route_negotiate_of_lt` that no ID below `0x10` does.
 `route_injective` states that two IDs never route to one place, and `route_comm` that both peers route every ID the same way.
 `messageCount_le_iff_unknownId` (`Execution/Proofs/Network/Message.lean`) states that the IDs an eth version holds are those below the first ID from which its decoder rejects every ID as unknown.
+`Message.ofItem_eq_ok_iff` (`Execution/Proofs/Network/Message.lean`) states that the eth decoder reads a message exactly from its own ID and item, on a version that uses its form.
 No theorem says anything about a sequence of frames beyond one step, or about timeouts.
 
 The source leaves three points open, and the session reads them as follows.
@@ -2192,7 +2193,6 @@ On the proof-of-stake networks that the session assumes, NewBlockHashes and NewB
 `sendEth_beforeStatus`, `sendEth_beforeOwnStatus` and `sendEth_pending` state the sending steps.
 `run_sentTxs` and `run_no_resend` state that along any run of a session, a Transactions message sends no transaction that went out before, and none that the peer sent before it.
 `snapAllowed_iff` states that the requirement holds exactly when a capability named eth is shared.
-`Message.ofItem_eq_ok_iff` (`Execution/Proofs/Network/Message.lean`) states that the decoder reads a message exactly from its own ID and item, on a version that uses its form.
 The session pairs a response with its request; the content of the response is judged apart, by `checkHeaders`, `receiptsMatch` and the other checks.
 
 The source leaves five points open, and the session decides none of them.

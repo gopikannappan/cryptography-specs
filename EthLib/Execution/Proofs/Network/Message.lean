@@ -13,9 +13,9 @@ public import EthLib.Execution.Proofs.Network.Transactions
 
 Each message reads back from its ID and its RLP item, on every version that uses its form.
 
-The decoder reads no other ID and item, so it takes no field more or less than the writer writes.
+The decoder reads no other ID or item, so it takes no field more or less than the writer writes.
 
-So does the reader of the envelope of a request or a response, with or without its part.
+The reader of an envelope reads only that envelope, with or without its part.
 
 eth/68 rejects BlockRangeUpdate.
 
@@ -237,7 +237,9 @@ theorem ofItem_toItem {version : EthVersion} {m : Message} (hm : m.FitsVersion v
 
 /-- A message reads exactly from its own ID and its item, on a version that uses its form.
 
-So the decoder takes no item with fields missing or added, and no message of another version. -/
+So the decoder takes no item with fields missing or added, and no message of another version.
+
+It takes no announcement whose lists differ in length. -/
 theorem ofItem_eq_ok_iff {version : EthVersion} {id : Nat} {item : Item} {m : Message} :
     ofItem version id item = .ok m ↔ id = m.id ∧ m.FitsVersion version ∧ item = m.toItem := by
   constructor
