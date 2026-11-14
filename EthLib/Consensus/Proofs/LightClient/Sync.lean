@@ -8,6 +8,10 @@ public import EthLib.Consensus.LightClient.Sync
 
 Each error of the light client has its own code.
 
+An update passes its checks against a store exactly when each check of the protocol holds.
+
+These include the order of its slots, its signature period, and whether the store can use it.
+
 The ranking of updates is a strict weak order.
 
 It is irreflexive, asymmetric and transitive, and its negation is transitive.
@@ -656,5 +660,86 @@ theorem processLightClientUpdate_maxActiveParticipants {config : Config}
   exact fields
 
 end Headers
+
+section Checks
+
+variable {preset : Preset} {fork : Fork}
+
+/--
+An update passes its checks against a store exactly when each check of the sync protocol holds.
+
+The fork has a light client, enough bits of the aggregate are set, and the attested header is valid.
+
+The signature slot is at most the current slot and after the attested slot.
+
+The finalized slot is at most the attested slot.
+
+The signature period is the period of the store.
+
+If the store knows a next committee, the signature period can also be the next period.
+
+The attested slot is after the finalized slot of the store, or the update brings a next committee.
+
+It brings one when the store has none and the update carries one.
+
+Its attested slot must also be in the period of the store.
+
+The finality check passes, and an update without a committee branch carries the zero committee.
+
+An update with a committee branch passes its branch check.
+
+A carried committee from an attested slot in the period of the store equals a known next one.
+
+The signing root of the attested header can be computed.
+
+The signature check takes the keys of the signing members of the committee of the signature period.
+
+It accepts them on that signing root.
+-/
+theorem validateLightClientUpdate_eq_ok_iff {config : Config} {checks : SignatureChecks}
+    {store : LightClientStore preset fork} {update : LightClientUpdate preset fork}
+    {currentSlot : Slot} {genesisValidatorsRoot : Root} :
+    validateLightClientUpdate config checks store update currentSlot genesisValidatorsRoot =
+        .ok () ↔
+      .altair ≤ fork ∧
+      preset.MIN_SYNC_COMMITTEE_PARTICIPANTS.toNat ≤ update.syncAggregate.participants ∧
+      isValidLightClientHeader config update.attestedHeader = .ok true ∧
+      update.signatureSlot ≤ currentSlot ∧
+      update.attestedHeader.beacon.slot < update.signatureSlot ∧
+      update.finalizedHeader.beacon.slot ≤ update.attestedHeader.beacon.slot ∧
+      (computeSyncCommitteePeriodAtSlot preset update.signatureSlot =
+          computeSyncCommitteePeriodAtSlot preset store.finalizedHeader.beacon.slot ∨
+        store.isNextSyncCommitteeKnown = true ∧
+          computeSyncCommitteePeriodAtSlot preset update.signatureSlot =
+            computeSyncCommitteePeriodAtSlot preset store.finalizedHeader.beacon.slot + 1) ∧
+      (store.finalizedHeader.beacon.slot < update.attestedHeader.beacon.slot ∨
+        store.isNextSyncCommitteeKnown = false ∧ update.isSyncCommitteeUpdate = true ∧
+          computeSyncCommitteePeriodAtSlot preset update.attestedHeader.beacon.slot =
+            computeSyncCommitteePeriodAtSlot preset store.finalizedHeader.beacon.slot) ∧
+      validateFinality config update = .ok () ∧
+      (update.isSyncCommitteeUpdate = false →
+        update.nextSyncCommittee = SyncCommittee.empty preset) ∧
+      (update.isSyncCommitteeUpdate = true →
+        (store.isNextSyncCommitteeKnown = true →
+          computeSyncCommitteePeriodAtSlot preset update.attestedHeader.beacon.slot =
+            computeSyncCommitteePeriodAtSlot preset store.finalizedHeader.beacon.slot →
+          update.nextSyncCommittee = store.nextSyncCommittee) ∧
+        validateNextSyncCommitteeBranch config update = .ok ()) ∧
+      ∃ signingRoot, syncCommitteeSigningRoot config update genesisValidatorsRoot =
+          .ok signingRoot ∧
+        checks.fastAggregateVerify
+          ((store.signatureCommittee update).participantKeys update.syncAggregate)
+          (packBytes signingRoot) update.syncAggregate.syncCommitteeSignature = true := by
+  -- A check returns the unit value, so a check that passes returns exactly that value.
+  have unit {P : Unit → Prop} : (∃ u, P u) ↔ P () := ⟨fun ⟨(), h⟩ => h, fun h => ⟨(), h⟩⟩
+  unfold validateLightClientUpdate
+  cases store.isNextSyncCommitteeKnown <;> cases update.isSyncCommitteeUpdate <;>
+    simp [LightClientError.requireFork, Base.bind_ok_iff, LightClientError.require_ok, unit,
+      and_assoc]
+  -- A store that knows the next committee also checks the committee in its own period.
+  intros
+  split <;> rename_i same <;> simp [same, Base.bind_ok_iff, LightClientError.require_ok, unit]
+
+end Checks
 
 end EthLib.Consensus
