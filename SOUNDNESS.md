@@ -2166,7 +2166,7 @@ An ID from `0x10` on goes to the shared capability that holds it, and `route` gi
 `route_negotiate` states that each ID a shared capability holds routes to it, and `route_negotiate_of_lt` that no ID below `0x10` does.
 `route_injective` states that two IDs never route to one place, and `route_comm` that both peers route every ID the same way.
 `Message.ofItem_eq_ok_iff` (`Networking/Proofs/Devp2p/P2p.lean`) states that a message is read only from its own ID and its own items, and that only Hello takes further items after its fields.
-`Hello.ofItem_eq_ok_iff` states that Hello reads from its five fields followed by any items, as EIP-8 asks.
+`Hello.ofItem_eq_ok_iff` states that Hello is read from a list exactly when the list starts with the items of its five fields, whatever items follow, as EIP-8 asks.
 `messageCount_le_iff_unknownId` (`Execution/Proofs/Network/Message.lean`) states that the IDs an eth version holds are those below the first ID from which its decoder rejects every ID as unknown.
 No theorem says anything about a sequence of frames beyond one step, or about timeouts.
 

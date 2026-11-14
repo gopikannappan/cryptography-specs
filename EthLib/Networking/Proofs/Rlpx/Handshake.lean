@@ -195,9 +195,9 @@ theorem leadingFields_append {count : Nat} {fields : List Item} (extra : List It
   simp [leadingFields, Item.toItems, bind, Except.bind, h, Nat.le_add_right_of_le h,
     List.take_append_of_le_length h]
 
-/-- A step after the leading fields succeeds exactly when the item is a list that starts with them.
+/-- A step after the leading fields succeeds exactly when it succeeds on the first `count` items.
 
-The step reads exactly those fields, and any items may follow them. -/
+The item must be a list that starts with those items, and any items may follow them. -/
 theorem leadingFields_bind_eq_ok {β : Type} {count : Nat} {item : Item}
     {f : List Item → Except RlpError β} {y : β} :
     (leadingFields count item >>= f) = .ok y ↔
